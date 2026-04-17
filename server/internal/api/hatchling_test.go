@@ -122,7 +122,8 @@ func TestHatchlingClarificationTurnCap(t *testing.T) {
 
 	// Fourth attempt must be rejected.
 	body, _ = json.Marshal(map[string]any{"content": "over"})
-	rej, _ := http.Post(ts.URL+"/v1/threads/"+threadID+"/messages", "application/json", bytes.NewReader(body))
+	rej, err := http.Post(ts.URL+"/v1/threads/"+threadID+"/messages", "application/json", bytes.NewReader(body))
+	require.NoError(t, err)
 	defer rej.Body.Close()
 	require.Equal(t, http.StatusConflict, rej.StatusCode)
 

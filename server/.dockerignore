@@ -1,0 +1,6 @@
+**/*.test
+**/.golangci.yaml
+**/testdata
+**/dist
+**/*.log
+.git
