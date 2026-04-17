@@ -1,0 +1,92 @@
+version: 2
+
+project_name: clawgard
+
+env:
+  - CGO_ENABLED=0
+  - GO111MODULE=on
+
+before:
+  hooks:
+    - go mod download
+    - make generate
+
+builds:
+  - id: clawgard-server
+    binary: clawgard-server
+    main: ./cmd/clawgard-server
+    dir: ./server
+    flags:
+      - -trimpath
+      - -buildvcs=false
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.FullCommit}}
+      - -X main.date={{.CommitDate}}
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ignore:
+      - goos: windows
+        goarch: arm64
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+  - id: clawgard-buddy
+    binary: clawgard-buddy
+    main: ./cmd/clawgard-buddy
+    dir: ./buddy-cli
+    flags:
+      - -trimpath
+      - -buildvcs=false
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.FullCommit}}
+      - -X main.date={{.CommitDate}}
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    ignore:
+      - goos: windows
+        goarch: arm64
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: clawgard-server
+    ids: [clawgard-server]
+    name_template: >-
+      clawgard-server_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - README.md
+      - SECURITY.md
+
+  - id: clawgard-buddy
+    ids: [clawgard-buddy]
+    name_template: >-
+      clawgard-buddy_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - README.md
+      - SECURITY.md
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-snapshot"
+
+# Placeholder release block; Task 9 replaces it with full changelog grouping
+# and release template. Required so `goreleaser check` can resolve the SCM
+# provider even before a git remote is configured (no-remote is an intentional
+# deviation for this repo until the first tagged release).
+release:
+  github:
+    owner: clawgard
+    name: clawgard
