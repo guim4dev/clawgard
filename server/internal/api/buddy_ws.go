@@ -99,7 +99,39 @@ func handleBuddyConnect(s *store.Store, reg *router.Registry) http.HandlerFunc {
 			if err := json.Unmarshal(data, &out); err != nil {
 				continue
 			}
+			// Deliver to waiting hatchling first so long-pollers/wait-for-frame see it
+			// before the thread gets closed and the waiter cleared.
 			reg.DeliverOutFrame(out)
+			switch out.Type {
+			case "answer", "clarification_request", "close":
+				tid, err := uuid.Parse(out.ThreadID)
+				if err == nil {
+					role := "buddy"
+					msgType := out.Type
+					content := out.Content
+					if msgType == "close" && content == "" {
+						content = out.Reason
+					}
+					_, _ = s.Messages().Append(ctx, store.NewMessage{
+						ThreadID: tid, Role: role, Type: msgType, Content: content,
+					})
+					if out.Type == "answer" || out.Type == "close" {
+						reason := "answered"
+						if out.Type == "close" {
+							reason = out.Reason
+							if reason == "" {
+								reason = "buddy_closed"
+							}
+						}
+						_ = s.Threads().Close(ctx, tid, reason)
+						// NOTE: do not ClearWaiter here — the final frame was just delivered
+						// to the buffered channel via DeliverOutFrame; removing the map entry
+						// before a long-poller reads it would cause WaitForFrame to create a
+						// new empty channel and block. The registry's waiter map is bounded by
+						// thread count and gets GC'd with the registry.
+					}
+				}
+			}
 			_ = s.Buddies().TouchLastSeen(ctx, buddy.ID)
 		}
 

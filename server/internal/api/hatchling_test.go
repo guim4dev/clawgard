@@ -14,6 +14,7 @@ import (
 	"github.com/clawgard/clawgard/server/internal/store"
 	"github.com/clawgard/clawgard/server/internal/testsupport"
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -126,4 +127,49 @@ func TestHatchlingClarificationTurnCap(t *testing.T) {
 	require.Equal(t, http.StatusConflict, rej.StatusCode)
 
 	_ = s // silence lint
+}
+
+func TestEndToEndAskAndAnswerRoundTrip(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration")
+	}
+	ts, s, reg, buddy := setupTestHatchlingServer(t)
+	defer ts.Close()
+
+	// Simulate a buddy that answers "pong".
+	cancel := reg.RegisterBuddy(buddy.ID, func(in router.InFrame) {
+		go func() {
+			time.Sleep(50 * time.Millisecond)
+			reg.DeliverOutFrame(router.OutFrame{
+				Type: "answer", ThreadID: in.ThreadID, Content: "pong",
+			})
+			// AND: post the message to the store as if buddy_ws did it.
+			_, _ = s.Messages().Append(context.Background(), store.NewMessage{
+				ThreadID: uuid.MustParse(in.ThreadID), Role: "buddy", Type: "answer", Content: "pong",
+			})
+			_ = s.Threads().Close(context.Background(), uuid.MustParse(in.ThreadID), "answered")
+		}()
+	})
+	defer cancel()
+
+	// Open the thread.
+	body, _ := json.Marshal(map[string]any{"buddyId": buddy.ID.String(), "question": "ping"})
+	resp, err := http.Post(ts.URL+"/v1/threads", "application/json", bytes.NewReader(body))
+	require.NoError(t, err)
+	var th map[string]any
+	_ = json.NewDecoder(resp.Body).Decode(&th)
+	resp.Body.Close()
+	threadID := th["id"].(string)
+
+	// Long-poll.
+	time.Sleep(150 * time.Millisecond)
+	r2, err := http.Get(ts.URL + "/v1/threads/" + threadID + "?waitSeconds=2")
+	require.NoError(t, err)
+	defer r2.Body.Close()
+	require.Equal(t, http.StatusOK, r2.StatusCode)
+	var full map[string]any
+	require.NoError(t, json.NewDecoder(r2.Body).Decode(&full))
+	require.Equal(t, "closed", full["status"])
+	msgs := full["messages"].([]any)
+	require.Len(t, msgs, 2)
 }
