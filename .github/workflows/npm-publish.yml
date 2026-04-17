@@ -1,0 +1,95 @@
+name: NPM Publish
+
+# Triggered on `release: published` so it runs after release.yml has finished
+# and the GitHub Release (with checksums.txt) is available for buddy-skill to
+# read from.
+#
+# TODO(remote): requires `NPM_TOKEN` in repo secrets (automation token or
+# Trusted Publisher configured; id-token: write handles the provenance
+# attestation). See SECURITY.md "Pre-flight" for setup.
+on:
+  release:
+    types: [published]
+
+permissions: {}
+
+jobs:
+  hatchling:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write     # npm provenance
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+          cache: pnpm
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+      - name: Set package version
+        working-directory: skills/hatchling-skill
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          npm version "$version" --no-git-tag-version
+      - name: Build
+        working-directory: skills/hatchling-skill
+        run: pnpm run build
+      - name: Publish with provenance
+        working-directory: skills/hatchling-skill
+        run: pnpm publish --provenance --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  buddy:
+    needs: hatchling   # nice-to-have ordering; not a correctness dep
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+          cache: pnpm
+      - name: Download checksums.txt from release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir release
+          gh release download "${GITHUB_REF_NAME}" -R "${GITHUB_REPOSITORY}" -D release -p 'checksums.txt'
+      - name: Inject per-platform hashes
+        env:
+          RELEASE_DIR: ./release
+          OUT: ./skills/buddy-skill/src/hashes.ts
+          VERSION: ${{ github.event.release.tag_name }}
+        run: |
+          # strip leading 'v'
+          export VERSION="${VERSION#v}"
+          bash scripts/release/build-skill-hashes.sh
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+      - name: Set package version
+        working-directory: skills/buddy-skill
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          npm version "$version" --no-git-tag-version
+      - name: Build
+        working-directory: skills/buddy-skill
+        run: pnpm run build
+      - name: Publish with provenance
+        working-directory: skills/buddy-skill
+        run: pnpm publish --provenance --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
