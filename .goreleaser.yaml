@@ -82,6 +82,49 @@ checksum:
 snapshot:
   version_template: "{{ incpatch .Version }}-snapshot"
 
+brews:
+  # TODO(remote): requires the `clawgard/homebrew-tap` repo to exist and the
+  # `HOMEBREW_TAP_TOKEN` secret (fine-grained PAT, contents: read/write on the
+  # tap repo) to be set in the main repo's Actions secrets. See SECURITY.md
+  # "Pre-flight" section for provisioning + rotation. Until that repo exists
+  # and the token is wired, the first real release run will fail at this step
+  # — which is the correct signal to set the token before retrying.
+  - name: clawgard-server
+    ids: [clawgard-server]
+    repository:
+      owner: clawgard
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/clawgard/clawgard"
+    description: "Self-hosted agent-to-agent knowledge-sharing relay server."
+    license: "Apache-2.0"
+    commit_author:
+      name: clawgard-releaser
+      email: release-bot@clawgard.dev
+    test: |
+      assert_match "clawgard-server version #{version}", shell_output("#{bin}/clawgard-server --version")
+    install: |
+      bin.install "clawgard-server"
+
+  - name: clawgard-buddy
+    ids: [clawgard-buddy]
+    repository:
+      owner: clawgard
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/clawgard/clawgard"
+    description: "Clawgard buddy daemon — keeps a buddy agent connected to a relay."
+    license: "Apache-2.0"
+    commit_author:
+      name: clawgard-releaser
+      email: release-bot@clawgard.dev
+    test: |
+      assert_match "clawgard-buddy version #{version}", shell_output("#{bin}/clawgard-buddy --version")
+    install: |
+      bin.install "clawgard-buddy"
+
 signs:
   - id: cosign-archives
     cmd: cosign
