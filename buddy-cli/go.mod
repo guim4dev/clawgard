@@ -5,6 +5,7 @@ go 1.26.2
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7 // indirect
 	github.com/coder/websocket v1.8.12 // indirect
+	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/mattn/go-colorable v0.1.2 // indirect
