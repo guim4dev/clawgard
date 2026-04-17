@@ -21,6 +21,9 @@ node_modules/
 /server/internal/web/dist/*
 !/server/internal/web/dist/index.html
 
+# TypeScript incremental build cache
+*.tsbuildinfo
+
 # Local
 .env
 .env.local

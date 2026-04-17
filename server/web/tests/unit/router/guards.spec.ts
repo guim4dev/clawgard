@@ -13,7 +13,10 @@ function buildRouter() {
 describe("router guards", () => {
   beforeEach(() => setActivePinia(createPinia()));
 
-  it("redirects unauthenticated users to /login", async () => {
+  // The unauth->login redirect has to fully resolve LoginView (dynamic import
+  // chain through Naive UI) on this first test run, which can take 20–25s on
+  // a cold jsdom. Raise the ceiling just for this case.
+  it("redirects unauthenticated users to /login", { timeout: 60_000 }, async () => {
     const router = buildRouter();
     const auth = useAuthStore();
     vi.spyOn(auth, "ensureLoaded").mockResolvedValue();
