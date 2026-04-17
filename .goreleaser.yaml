@@ -199,13 +199,13 @@ sboms:
   - id: archive
     artifacts: archive
     documents:
-      - "${artifact.name}.spdx.sbom.json"
+      - "{{ .ArtifactName }}.spdx.sbom.json"
     cmd: syft
     args: ["$artifact", "--output", "spdx-json=$document"]
   - id: docker
     artifacts: package
     documents:
-      - "${artifact.name}.spdx.sbom.json"
+      - "{{ .ArtifactName }}.spdx.sbom.json"
     cmd: syft
     args: ["$artifact", "--output", "spdx-json=$document"]
 
