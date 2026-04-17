@@ -82,6 +82,20 @@ checksum:
 snapshot:
   version_template: "{{ incpatch .Version }}-snapshot"
 
+sboms:
+  - id: archive
+    artifacts: archive
+    documents:
+      - "${artifact.name}.spdx.sbom.json"
+    cmd: syft
+    args: ["$artifact", "--output", "spdx-json=$document"]
+  - id: docker
+    artifacts: package
+    documents:
+      - "${artifact.name}.spdx.sbom.json"
+    cmd: syft
+    args: ["$artifact", "--output", "spdx-json=$document"]
+
 dockers:
   - id: server-amd64
     ids: [clawgard-server]
