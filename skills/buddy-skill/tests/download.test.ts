@@ -38,3 +38,42 @@ describe("downloadAndVerify (happy path)", () => {
     });
   });
 });
+
+describe("downloadAndVerify (mismatch)", () => {
+  it("deletes the partial file, throws VerificationError, leaves no final binary", async () => {
+    await withTmpCache(async (root) => {
+      const paths = resolveCachePaths({ root, version: "0.1.0", binaryName: "clawgard-buddy" });
+      await ensureCacheDir(paths);
+
+      await expect(
+        downloadAndVerify({
+          url: fixture.url("/corrupted-binary.bin"),
+          paths,
+          expectedSha256: "a".repeat(64), // wrong
+          platformKey: "linux-amd64",
+          version: "0.1.0",
+          allowInsecureForTest: true,
+        }),
+      ).rejects.toThrow(/did not match the expected hash/);
+
+      await expect(stat(paths.binary)).rejects.toThrow();
+      await expect(stat(paths.part)).rejects.toThrow();
+    });
+  });
+
+  it("rejects http:// URLs when not in test mode", async () => {
+    await withTmpCache(async (root) => {
+      const paths = resolveCachePaths({ root, version: "0.1.0", binaryName: "clawgard-buddy" });
+      await ensureCacheDir(paths);
+      await expect(
+        downloadAndVerify({
+          url: fixture.url("/fake-binary.bin"),
+          paths,
+          expectedSha256: "a".repeat(64),
+          platformKey: "linux-amd64",
+          version: "0.1.0",
+        }),
+      ).rejects.toThrow(/refusing to download over non-https/);
+    });
+  });
+});
