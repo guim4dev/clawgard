@@ -13,17 +13,21 @@ import (
 )
 
 type SupervisorDeps struct {
-	Dialer *client.Client
-	Runner *hook.Runner
+	Dialer  *client.Client
+	Runner  *hook.Runner
+	Backoff *client.Backoff // optional; default 1s..30s ±20%
 }
 
 func RunSupervisor(ctx context.Context, d SupervisorDeps) error {
-	bo := client.NewBackoff(client.BackoffConfig{
-		Initial: 1 * time.Second,
-		Max:     30 * time.Second,
-		Jitter:  0.2,
-		Rand:    rand.New(rand.NewSource(time.Now().UnixNano())),
-	})
+	bo := d.Backoff
+	if bo == nil {
+		bo = client.NewBackoff(client.BackoffConfig{
+			Initial: 1 * time.Second,
+			Max:     30 * time.Second,
+			Jitter:  0.2,
+			Rand:    rand.New(rand.NewSource(time.Now().UnixNano())),
+		})
+	}
 	for {
 		if ctx.Err() != nil {
 			return ctx.Err()
