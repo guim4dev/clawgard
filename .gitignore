@@ -1,0 +1,30 @@
+# Go
+/bin/
+/dist/
+*.test
+*.out
+vendor/
+
+# Node
+node_modules/
+*.log
+.pnpm-store/
+
+# Generated
+/spec-go/generated.go
+/spec-ts/src/generated.ts
+/server/web/dist/
+
+# Local
+.env
+.env.local
+.DS_Store
+
+# Superpowers working docs (plans are local-only)
+/docs/superpowers/
+!/docs/superpowers/plans/.gitkeep
+
+# IDE
+.idea/
+.vscode/
+*.swp
