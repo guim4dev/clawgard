@@ -17,5 +17,6 @@ func NewRootCmd(info BuildInfo) *cobra.Command {
 	}
 	root.AddCommand(newVersionCmd(info))
 	root.AddCommand(newSetupCmd())
+	root.AddCommand(newListenCmd())
 	return root
 }
