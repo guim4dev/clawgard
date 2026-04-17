@@ -43,9 +43,26 @@ async function onDiskSha(path: string): Promise<string> {
 }
 
 function readPackageVersion(): string {
-  const pkgUrl = new URL("../../package.json", import.meta.url);
-  const raw = readFileSync(pkgUrl, "utf8");
-  return (JSON.parse(raw) as { version: string }).version;
+  // The compiled file may live at `<pkg>/scripts/*.js` (Claude Code entry)
+  // or at `<pkg>/src/lib/bootstrap.ts` (tests + TS sources). Walk up until
+  // we find a package.json whose name is @clawgard/buddy-skill.
+  const here = new URL(import.meta.url);
+  for (const rel of ["../package.json", "../../package.json", "../../../package.json"]) {
+    try {
+      const candidate = new URL(rel, here);
+      const raw = readFileSync(candidate, "utf8");
+      const parsed = JSON.parse(raw) as { name?: string; version?: string };
+      if (parsed.name === "@clawgard/buddy-skill" && parsed.version) {
+        return parsed.version;
+      }
+    } catch {
+      // keep walking
+    }
+  }
+  throw new Error(
+    "cannot locate @clawgard/buddy-skill package.json to read version; " +
+      "pass `version` explicitly when calling bootstrapBinary.",
+  );
 }
 
 /**
