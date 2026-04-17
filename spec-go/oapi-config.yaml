@@ -1,0 +1,9 @@
+package: spec
+output: generated.go
+generate:
+  models: true
+  client: true
+  strict-server: true
+  embedded-spec: true
+output-options:
+  skip-prune: true
