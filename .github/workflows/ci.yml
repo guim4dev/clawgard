@@ -45,3 +45,22 @@ jobs:
       - name: Build Docker image
         run: |
           docker build -f server/Dockerfile -t clawgard-server:ci .
+
+  hatchling-skill-matrix:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @clawgard/hatchling-skill run typecheck
+      - run: pnpm --filter @clawgard/hatchling-skill run build
+      - run: pnpm --filter @clawgard/hatchling-skill run test
