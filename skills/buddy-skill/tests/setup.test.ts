@@ -22,7 +22,7 @@ describe("runSetup", () => {
   it("downloads, verifies, and invokes the binary's `setup` subcommand", async () => {
     const bytes = await readFile("tests/fixtures/fake-binary.bin");
     const expectedSha = shaOf(bytes);
-    const spawnMock = vi.fn(async () => 0);
+    const spawnMock = vi.fn<(cmd: string, args: string[]) => Promise<number>>(async () => 0);
 
     await withTmpCache(async (root) => {
       await runSetup({

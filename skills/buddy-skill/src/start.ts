@@ -1,15 +1,27 @@
-import { runSetup, type SetupOpts } from "./setup.js";
+import { bootstrapBinary, type BootstrapOpts } from "./lib/bootstrap.js";
 import { runInteractive } from "./lib/spawn.js";
 
-export interface StartOpts extends SetupOpts {}
+export interface StartOpts extends BootstrapOpts {
+  spawnInteractive?: (cmd: string, args: string[]) => Promise<number>;
+  extraArgs?: string[];
+}
 
 export async function runStart(opts: StartOpts = {}): Promise<number> {
-  const realRunner = opts.spawnInteractive ?? runInteractive;
-  return runSetup({
-    ...opts,
-    spawnInteractive: async (cmd, args) => {
-      const rewritten = args[0] === "setup" ? ["listen", ...args.slice(1)] : args;
-      return realRunner(cmd, rewritten);
-    },
-  });
+  const boot = await bootstrapBinary(opts);
+  try {
+    const runner = opts.spawnInteractive ?? runInteractive;
+    return await runner(boot.binaryPath, ["listen", ...(opts.extraArgs ?? [])]);
+  } finally {
+    await boot.release();
+  }
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  runStart({ extraArgs: process.argv.slice(2) })
+    .then((code) => process.exit(code))
+    .catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(msg);
+      process.exit(1);
+    });
 }

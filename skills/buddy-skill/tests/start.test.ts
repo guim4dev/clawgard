@@ -12,7 +12,7 @@ describe("runStart", () => {
     try {
       const bytes = await readFile("tests/fixtures/fake-binary.bin");
       const expectedSha = createHash("sha256").update(bytes).digest("hex");
-      const spawnMock = vi.fn(async () => 0);
+      const spawnMock = vi.fn<(cmd: string, args: string[]) => Promise<number>>(async () => 0);
       await withTmpCache(async (root) => {
         await runStart({
           cacheRoot: root,
