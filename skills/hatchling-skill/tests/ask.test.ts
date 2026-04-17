@@ -292,3 +292,83 @@ describe("runAsk — clarification flow", () => {
     expect(receivedReplies).toHaveLength(3);
   });
 });
+
+describe("runAsk — piped stdin", () => {
+  it("reads a clarification reply from piped stdin (isTTY=false)", async () => {
+    const threadId = "44444444-4444-4444-4444-444444444444";
+
+    server.use(
+      http.post("https://relay.test/v1/threads", () =>
+        HttpResponse.json({
+          id: threadId,
+          buddyId: "b",
+          hatchlingEmail: "u@example.com",
+          status: "open",
+          turns: 0,
+          createdAt: new Date().toISOString(),
+          messages: [],
+        }, { status: 201 }),
+      ),
+      http.get(`https://relay.test/v1/threads/${threadId}`, () =>
+        HttpResponse.json({
+          id: threadId,
+          buddyId: "b",
+          hatchlingEmail: "u@example.com",
+          status: "closed",
+          turns: 1,
+          createdAt: new Date().toISOString(),
+          closedAt: new Date().toISOString(),
+          messages: [
+            {
+              id: "cr",
+              threadId,
+              role: "buddy",
+              type: "clarification_request",
+              content: "which?",
+              createdAt: new Date(Date.now() - 2000).toISOString(),
+            },
+            {
+              id: "c",
+              threadId,
+              role: "hatchling",
+              type: "clarification",
+              content: "via-stdin",
+              createdAt: new Date(Date.now() - 1000).toISOString(),
+            },
+            {
+              id: "a",
+              threadId,
+              role: "buddy",
+              type: "answer",
+              content: "ok",
+              createdAt: new Date().toISOString(),
+            },
+          ],
+        }),
+      ),
+      http.post(`https://relay.test/v1/threads/${threadId}/messages`, async ({ request }) => {
+        const body = (await request.json()) as { content: string };
+        expect(body.content).toBe("via-stdin");
+        return HttpResponse.json({}, { status: 202 });
+      }),
+    );
+
+    // Minimal stdin stub that emits one line.
+    const { Readable } = await import("node:stream");
+    const stdin = Readable.from([Buffer.from("via-stdin\n")]);
+    Object.defineProperty(stdin, "isTTY", { value: false });
+    const original = process.stdin;
+    Object.defineProperty(process, "stdin", { value: stdin, configurable: true });
+
+    try {
+      await runAsk({
+        flags: {},
+        env: sb.withEnv(),
+        buddyId: "b",
+        question: "what is X?",
+      });
+    } finally {
+      Object.defineProperty(process, "stdin", { value: original, configurable: true });
+    }
+  });
+});
