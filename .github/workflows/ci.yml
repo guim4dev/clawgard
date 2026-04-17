@@ -64,3 +64,26 @@ jobs:
       - run: pnpm --filter @clawgard/hatchling-skill run typecheck
       - run: pnpm --filter @clawgard/hatchling-skill run build
       - run: pnpm --filter @clawgard/hatchling-skill run test
+
+  buddy-cli-matrix:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - name: Build
+        working-directory: buddy-cli
+        run: go build ./...
+      - name: Unit tests
+        working-directory: buddy-cli
+        run: go test ./...
+      - name: Cross-compile smoke (linux build from non-linux)
+        if: matrix.os != 'ubuntu-latest'
+        working-directory: buddy-cli
+        run: GOOS=linux GOARCH=amd64 go build ./cmd/clawgard-buddy
+        shell: bash
