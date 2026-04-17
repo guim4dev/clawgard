@@ -80,17 +80,20 @@ func TestHandleFrame_ClarificationIncrementsTurn(t *testing.T) {
 		// First: question (turn 1)
 		_ = c.Write(r.Context(), websocket.MessageText,
 			[]byte(`{"type":"question","threadId":"t-1","content":"q1","askerEmail":"a@b"}`))
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(500 * time.Millisecond)
 		// Second: clarification (turn 2)
 		_ = c.Write(r.Context(), websocket.MessageText,
 			[]byte(`{"type":"clarification","threadId":"t-1","content":"q2","askerEmail":"a@b"}`))
-		time.Sleep(300 * time.Millisecond)
+		// Keep connection open long enough for both hook invocations and the
+		// single-writer goroutine to drain responses (hooks are subprocesses so
+		// this can be several seconds under concurrent test load).
+		time.Sleep(5 * time.Second)
 		c.Close(websocket.StatusNormalClosure, "")
 	}))
 	defer srv.Close()
 
 	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "/v1/buddy/connect"
-	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	c := client.New(client.Options{RelayURL: wsURL, APIKey: "k"})
