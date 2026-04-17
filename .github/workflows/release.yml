@@ -94,3 +94,36 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: scripts/release/verify-release.sh "${GITHUB_REF_NAME}"
+
+  install-test:
+    needs: verify-signatures
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install Homebrew
+        run: |
+          NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          echo "/home/linuxbrew/.linuxbrew/bin" >> "$GITHUB_PATH"
+
+      - name: Install from tap
+        run: |
+          brew tap clawgard/tap
+          brew install clawgard-server clawgard-buddy
+          clawgard-server --version
+          clawgard-buddy --version
+
+      - name: Install hatchling-skill from npm
+        run: |
+          npx --yes @clawgard/hatchling-skill@${GITHUB_REF_NAME#v} --version
+
+      - name: Verify npm provenance
+        run: |
+          npm audit signatures \
+            @clawgard/hatchling-skill@${GITHUB_REF_NAME#v} \
+            @clawgard/buddy-skill@${GITHUB_REF_NAME#v}
+
+      - name: Pull and smoke-test docker images
+        run: |
+          docker pull ghcr.io/clawgard/server:${GITHUB_REF_NAME}
+          docker pull ghcr.io/clawgard/buddy:${GITHUB_REF_NAME}
+          docker run --rm ghcr.io/clawgard/server:${GITHUB_REF_NAME} --version
+          docker run --rm ghcr.io/clawgard/buddy:${GITHUB_REF_NAME} --version
