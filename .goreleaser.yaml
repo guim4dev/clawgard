@@ -125,6 +125,40 @@ brews:
     install: |
       bin.install "clawgard-buddy"
 
+scoops:
+  # TODO(remote): requires the `clawgard/scoop-bucket` repo and the
+  # `SCOOP_BUCKET_TOKEN` secret (fine-grained PAT, contents: read/write on the
+  # bucket repo). See SECURITY.md "Pre-flight" section. Until wired, the first
+  # tagged release will fail at this step — correct signal to set up the
+  # secret before retrying.
+  - name: clawgard-server
+    ids: [clawgard-server]
+    repository:
+      owner: clawgard
+      name: scoop-bucket
+      token: "{{ .Env.SCOOP_BUCKET_TOKEN }}"
+    directory: bucket
+    homepage: "https://github.com/clawgard/clawgard"
+    description: "Self-hosted agent-to-agent knowledge-sharing relay server."
+    license: Apache-2.0
+    commit_author:
+      name: clawgard-releaser
+      email: release-bot@clawgard.dev
+
+  - name: clawgard-buddy
+    ids: [clawgard-buddy]
+    repository:
+      owner: clawgard
+      name: scoop-bucket
+      token: "{{ .Env.SCOOP_BUCKET_TOKEN }}"
+    directory: bucket
+    homepage: "https://github.com/clawgard/clawgard"
+    description: "Clawgard buddy daemon."
+    license: Apache-2.0
+    commit_author:
+      name: clawgard-releaser
+      email: release-bot@clawgard.dev
+
 signs:
   - id: cosign-archives
     cmd: cosign
