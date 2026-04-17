@@ -1,0 +1,16 @@
+{
+  "name": "@clawgard/spec",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "openapi-typescript ../spec/clawgard.openapi.yaml -o src/generated.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.4.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.1.0"
+  }
+}
