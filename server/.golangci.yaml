@@ -1,0 +1,21 @@
+run:
+  timeout: 3m
+  go: "1.22"
+
+linters:
+  disable-all: true
+  enable:
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - errcheck
+    - gofmt
+    - goimports
+    - revive
+    - gosec
+
+linters-settings:
+  gosec:
+    excludes:
+      - G104  # handled via errcheck
