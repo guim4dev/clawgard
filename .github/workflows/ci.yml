@@ -87,3 +87,58 @@ jobs:
         working-directory: buddy-cli
         run: GOOS=linux GOARCH=amd64 go build ./cmd/clawgard-buddy
         shell: bash
+
+  buddy-skill-matrix:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @clawgard/buddy-skill run typecheck
+      - run: pnpm --filter @clawgard/buddy-skill run build
+      - run: pnpm --filter @clawgard/buddy-skill run test
+
+  verify-buddy-skill-hashes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Run injector tests only
+        run: pnpm --filter @clawgard/buddy-skill exec vitest run tests/build-skill.test.ts
+      - name: Assert hashes.ts in git is the empty-map template
+        shell: bash
+        run: |
+          expected=$(cat <<'EOF'
+          import type { PlatformKey } from "./platform.js";
+
+          // GENERATED FILE — edits are overwritten by scripts-dev/build-skill.ts at publish time.
+          // In the git repo this map is intentionally empty; publish-time injection fills it
+          // from the matching `clawgard-buddy` GitHub release asset manifest.
+          export type ExpectedHashes = Partial<Record<PlatformKey, string>>;
+          export const EXPECTED_HASHES: ExpectedHashes = {};
+          EOF
+          )
+          actual=$(cat skills/buddy-skill/src/lib/hashes.ts)
+          if [ "$expected" != "$actual" ]; then
+            echo "::error::skills/buddy-skill/src/lib/hashes.ts in git must be the empty-map template."
+            echo "--- expected ---"
+            echo "$expected"
+            echo "--- actual ---"
+            echo "$actual"
+            exit 1
+          fi
