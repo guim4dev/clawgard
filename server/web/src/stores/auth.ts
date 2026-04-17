@@ -1,26 +1,45 @@
 import { defineStore } from "pinia";
+import { apiGet, apiPost, HttpError } from "@/lib/http";
+import type { MeResponse } from "@/types";
+import type { Role } from "@/router";
 
-export type Role = "admin" | "buddy_owner" | "hatchling";
-
-export interface Me {
-  email: string;
-  roles: Role[];
-}
-
-interface AuthState {
-  me: Me | null;
-  loading: boolean;
+interface State {
+  me: MeResponse | null;
   loaded: boolean;
+  loading: Promise<void> | null;
 }
 
-// Minimal auth-store shell. Task 4 adds `loadMe`, `/v1/me` integration,
-// and `beginLogin` (PKCE entry). The shape here is the public surface the
-// router guard and other stores bind against.
 export const useAuthStore = defineStore("auth", {
-  state: (): AuthState => ({ me: null, loading: false, loaded: false }),
+  state: (): State => ({ me: null, loaded: false, loading: null }),
+  getters: {
+    hasRole:
+      (state) =>
+      (role: Role): boolean =>
+        !!state.me && state.me.roles.includes(role),
+  },
   actions: {
     async ensureLoaded(): Promise<void> {
-      if (this.loaded || this.loading) return;
+      if (this.loaded) return;
+      if (this.loading) return this.loading;
+      this.loading = (async () => {
+        try {
+          this.me = await apiGet<MeResponse>("/v1/me");
+        } catch (err) {
+          if (err instanceof HttpError && err.status === 401) {
+            this.me = null;
+          } else {
+            throw err;
+          }
+        } finally {
+          this.loaded = true;
+          this.loading = null;
+        }
+      })();
+      return this.loading;
+    },
+    async logout(): Promise<void> {
+      await apiPost<null>("/auth/logout");
+      this.me = null;
       this.loaded = true;
     },
   },
