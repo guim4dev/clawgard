@@ -18,7 +18,10 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: "dist",
+    // Vite writes straight into the Go package's embed target so `//go:embed`
+    // in server/internal/web picks it up without a copy step. Keep this path
+    // in sync with server/internal/web/embed.go's //go:embed directive.
+    outDir: "../internal/web/dist",
     emptyOutDir: true,
     sourcemap: true,
   },
