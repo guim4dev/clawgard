@@ -1,0 +1,35 @@
+{
+  "name": "@clawgard/hatchling-skill",
+  "version": "0.0.0",
+  "description": "Claude Code skill: ask Clawgard buddies questions via your company's self-hosted relay.",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "bin": {
+    "clawgard-hatchling-setup": "scripts/setup.js",
+    "clawgard-hatchling-list": "scripts/list.js",
+    "clawgard-hatchling-ask": "scripts/ask.js"
+  },
+  "files": ["scripts", "SKILL.md", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.7.0",
+    "commander": "^12.1.0",
+    "env-paths": "^3.0.0",
+    "open": "^10.1.0"
+  },
+  "devDependencies": {
+    "@clawgard/spec": "workspace:*",
+    "@types/node": "^20.14.0",
+    "msw": "^2.3.5",
+    "testcontainers": "^10.13.0",
+    "tsup": "^8.2.4",
+    "typescript": "^5.5.4",
+    "vitest": "^2.1.0"
+  }
+}
