@@ -14,6 +14,12 @@ node_modules/
 /spec-go/generated.go
 /spec-ts/src/generated.ts
 /server/web/dist/
+# Embedded SPA build output. Checked-in .gitkeep + index.html placeholder keep
+# go:embed compiling on fresh clones; the Makefile dashboard-build target
+# overwrites these with the real Vite output.
+/server/internal/web/dist/*
+!/server/internal/web/dist/.gitkeep
+!/server/internal/web/dist/index.html
 
 # Local
 .env

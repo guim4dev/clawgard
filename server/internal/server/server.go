@@ -16,6 +16,7 @@ import (
 	"github.com/clawgard/clawgard/server/internal/router"
 	"github.com/clawgard/clawgard/server/internal/store"
 	"github.com/clawgard/clawgard/server/internal/sweeper"
+	"github.com/clawgard/clawgard/server/internal/web"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
@@ -82,6 +83,48 @@ func New(ctx context.Context, cfg config.Config) (*Server, error) {
 		api.MountAdmin(r, s)
 	})
 
+	// Plan 5 dashboard: session-cookie auth, /v1/me, /auth/{login,callback,logout},
+	// and the embedded SPA catch-all. All three require a SessionSecret; if the
+	// operator hasn't configured one, we skip the SPA surface entirely (the
+	// bare API still works for buddy-cli and hatchling-skill flows).
+	if cfg.SessionSecret != "" {
+		signer := api.NewSessionSigner([]byte(cfg.SessionSecret))
+
+		adminEmailSet := make(map[string]bool, len(cfg.AdminEmails))
+		for _, e := range cfg.AdminEmails {
+			adminEmailSet[e] = true
+		}
+		meHandler := api.NewMeHandler(api.MeConfig{
+			Signer:      signer,
+			AdminEmails: adminEmailSet,
+			BuddyStore:  &buddyOwnerLookup{store: s},
+		})
+		r.Method(http.MethodGet, "/v1/me", meHandler)
+
+		if cfg.OIDCClientID != "" && cfg.OIDCTokenURL != "" {
+			authHandler := api.NewAuthHandler(api.AuthConfig{
+				IdPAuthURL:   cfg.OIDCAuthURL,
+				IdPTokenURL:  cfg.OIDCTokenURL,
+				ClientID:     cfg.OIDCClientID,
+				ClientSecret: cfg.OIDCClientSecret,
+				RedirectURL:  cfg.OIDCRedirectURL,
+				Signer:       signer,
+				StateStore:   api.NewMemoryStateStore(),
+				Dev:          cfg.DevMode,
+			})
+			r.Get("/auth/login", authHandler.Login)
+			r.Get("/auth/callback", authHandler.Callback)
+			r.Post("/auth/logout", authHandler.Logout)
+		}
+
+		// SPA fallback must come last. The handler itself rejects /v1/* and
+		// /auth/* paths defensively, but chi's routing ensures those mounts
+		// win by virtue of being registered first.
+		spa := web.Handler()
+		r.NotFound(spa.ServeHTTP)
+		r.MethodNotAllowed(spa.ServeHTTP)
+	}
+
 	lis, err := net.Listen("tcp", cfg.HTTPAddr)
 	if err != nil {
 		return nil, err
@@ -126,6 +169,27 @@ func (s *Server) Run(ctx context.Context) error {
 		return err
 	}
 	return nil
+}
+
+// buddyOwnerLookup adapts *store.Store to api.BuddyOwnerLookup. It answers
+// "does this email own any non-deleted buddy?" by scanning the admin list.
+// The admin list is small (O(buddies)) and the query is rare (once per page
+// load when /v1/me is called), so an in-memory scan is acceptable for MVP.
+type buddyOwnerLookup struct {
+	store *store.Store
+}
+
+func (b *buddyOwnerLookup) HasBuddiesOwnedBy(email string) (bool, error) {
+	bs, err := b.store.Buddies().ListAll(context.Background())
+	if err != nil {
+		return false, err
+	}
+	for _, bd := range bs {
+		if bd.OwnerEmail == email {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 func parseLevel(s string) slog.Level {

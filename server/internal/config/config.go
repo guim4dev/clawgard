@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -19,6 +20,20 @@ type Config struct {
 	DevMode           bool
 	DevAdminKey       string
 	LogLevel          string
+
+	// Plan 5 (dashboard) additions.
+	// OIDC PKCE flow for browser logins:
+	OIDCAuthURL      string
+	OIDCTokenURL     string
+	OIDCClientID     string
+	OIDCClientSecret string
+	OIDCRedirectURL  string
+	// Session cookie signing secret (must be >= 32 bytes when set).
+	SessionSecret string
+	// Comma-separated admin emails (CLAWGARD_ADMIN_EMAILS) for the /v1/me role derivation.
+	AdminEmails []string
+	// PublicURL is the externally visible server origin (used for OIDC redirect defaults).
+	PublicURL string
 }
 
 type fileSchema map[string]struct {
@@ -95,6 +110,36 @@ func Load(path string) (Config, error) {
 	if os.Getenv("CLAWGARD_DEV_MODE") == "true" {
 		cfg.DevMode = true
 		cfg.DevAdminKey = os.Getenv("CLAWGARD_ADMIN_KEY")
+	}
+
+	// Plan 5 env overlays.
+	if v := os.Getenv("CLAWGARD_OIDC_AUTH_URL"); v != "" {
+		cfg.OIDCAuthURL = v
+	}
+	if v := os.Getenv("CLAWGARD_OIDC_TOKEN_URL"); v != "" {
+		cfg.OIDCTokenURL = v
+	}
+	if v := os.Getenv("CLAWGARD_OIDC_CLIENT_ID"); v != "" {
+		cfg.OIDCClientID = v
+	}
+	if v := os.Getenv("CLAWGARD_OIDC_CLIENT_SECRET"); v != "" {
+		cfg.OIDCClientSecret = v
+	}
+	if v := os.Getenv("CLAWGARD_OIDC_REDIRECT_URL"); v != "" {
+		cfg.OIDCRedirectURL = v
+	}
+	if v := os.Getenv("CLAWGARD_SESSION_SECRET"); v != "" {
+		cfg.SessionSecret = v
+	}
+	if v := os.Getenv("CLAWGARD_ADMIN_EMAILS"); v != "" {
+		for _, e := range strings.Split(v, ",") {
+			if e = strings.TrimSpace(e); e != "" {
+				cfg.AdminEmails = append(cfg.AdminEmails, e)
+			}
+		}
+	}
+	if v := os.Getenv("CLAWGARD_PUBLIC_URL"); v != "" {
+		cfg.PublicURL = v
 	}
 
 	return cfg, nil
