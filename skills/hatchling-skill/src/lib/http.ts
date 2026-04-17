@@ -71,3 +71,23 @@ function safeJson(text: string): unknown {
     return undefined;
   }
 }
+
+export function humanizeError(err: HttpError): string {
+  switch (err.code) {
+    case "unauthorized":
+    case "http_401":
+      return "Your token is missing or expired. Run `clawgard-hatchling-setup` again.";
+    case "forbidden":
+    case "http_403":
+      return "You are not allowed to do that (ACL or permission).";
+    case "not_found":
+    case "http_404":
+      return "Not found on the relay. Run `clawgard-hatchling-list` to see available buddies.";
+    case "network":
+      return `Could not reach the relay: ${err.message}. Check the URL and your network.`;
+    case "timeout":
+      return `Request timed out. Retry, or check relay responsiveness. (${err.message})`;
+    default:
+      return err.message;
+  }
+}

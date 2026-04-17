@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { resolveConfig } from "./lib/config.js";
-import { apiFetch } from "./lib/http.js";
+import { apiFetch, HttpError, humanizeError } from "./lib/http.js";
 import type { Buddy } from "./types.js";
 
 export interface ListInput {
@@ -44,7 +44,15 @@ function buildCli(): Command {
 
 export async function main(argv: string[] = process.argv): Promise<void> {
   const cli = buildCli().parse(argv);
-  await runList({ flags: cli.opts(), env: process.env });
+  try {
+    await runList({ flags: cli.opts(), env: process.env });
+  } catch (err) {
+    if (err instanceof HttpError) {
+      process.stderr.write(humanizeError(err) + "\n");
+      process.exit(1);
+    }
+    throw err;
+  }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

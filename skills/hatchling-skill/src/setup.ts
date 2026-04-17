@@ -3,6 +3,7 @@ import * as p from "@clack/prompts";
 import open from "open";
 import { initiateDeviceCode, pollForToken } from "./lib/oidc.js";
 import { writeConfig, writeToken } from "./lib/config.js";
+import { HttpError, humanizeError } from "./lib/http.js";
 
 export interface SetupInput {
   flags: { relayUrl?: string; profile?: string };
@@ -64,7 +65,15 @@ function buildCli(): Command {
 export async function main(argv: string[] = process.argv): Promise<void> {
   const cli = buildCli().parse(argv);
   const opts = cli.opts<{ relayUrl?: string; profile?: string }>();
-  await runSetup({ flags: opts, env: process.env });
+  try {
+    await runSetup({ flags: opts, env: process.env });
+  } catch (err) {
+    if (err instanceof HttpError) {
+      process.stderr.write(humanizeError(err) + "\n");
+      process.exit(1);
+    }
+    throw err;
+  }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

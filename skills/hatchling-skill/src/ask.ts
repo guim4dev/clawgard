@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import { resolveConfig } from "./lib/config.js";
-import { apiFetch } from "./lib/http.js";
+import { apiFetch, HttpError, humanizeError } from "./lib/http.js";
 import type { Thread, Message } from "./types.js";
 
 export interface AskInput {
@@ -123,7 +123,15 @@ function buildCli(): Command {
 export async function main(argv: string[] = process.argv): Promise<void> {
   const cli = buildCli().parse(argv);
   const [buddyId, question] = cli.processedArgs as [string, string];
-  await runAsk({ flags: cli.opts(), env: process.env, buddyId, question });
+  try {
+    await runAsk({ flags: cli.opts(), env: process.env, buddyId, question });
+  } catch (err) {
+    if (err instanceof HttpError) {
+      process.stderr.write(humanizeError(err) + "\n");
+      process.exit(1);
+    }
+    throw err;
+  }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
