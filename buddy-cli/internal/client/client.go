@@ -37,3 +37,18 @@ func (c *Client) Dial(ctx context.Context) (*websocket.Conn, error) {
 	}
 	return conn, nil
 }
+
+type InFrame struct {
+	Type       string `json:"type"`
+	ThreadID   string `json:"threadId"`
+	Content    string `json:"content"`
+	AskerEmail string `json:"askerEmail,omitempty"`
+	Reason     string `json:"reason,omitempty"`
+}
+
+type OutFrame struct {
+	Type     string `json:"type"`
+	ThreadID string `json:"threadId"`
+	Content  string `json:"content,omitempty"`
+	Reason   string `json:"reason,omitempty"`
+}
