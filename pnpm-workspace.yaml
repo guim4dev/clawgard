@@ -1,3 +1,4 @@
 packages:
   - "spec-ts"
   - "skills/*"
+  - "server/web"

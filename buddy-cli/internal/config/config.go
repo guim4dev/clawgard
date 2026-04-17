@@ -60,6 +60,10 @@ func Load(opts LoadOptions) (Config, error) {
 		relay = opts.RelayURLFlag
 	}
 
+	if relay == "" {
+		return Config{}, fmt.Errorf("no relay URL configured: set --relay-url, CLAWGARD_URL, or run `clawgard-buddy setup`")
+	}
+
 	return Config{ProfileName: profile, RelayURL: relay}, nil
 }
 

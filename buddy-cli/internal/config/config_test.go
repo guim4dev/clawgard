@@ -67,3 +67,11 @@ func TestLoad_MissingProfileIsError(t *testing.T) {
 	_, err := Load(LoadOptions{ConfigPath: path, Profile: "nope"})
 	require.ErrorContains(t, err, "profile \"nope\" not found")
 }
+
+func TestLoad_NoFileAndNoFlag_ReturnsHelpfulError(t *testing.T) {
+	t.Setenv("CLAWGARD_URL", "") // explicit unset
+	t.Setenv("CLAWGARD_PROFILE", "")
+	_, err := Load(LoadOptions{ConfigPath: "/nonexistent/path/config.json", Profile: "default"})
+	require.ErrorContains(t, err, "no relay URL")
+	require.ErrorContains(t, err, "clawgard-buddy setup")
+}
