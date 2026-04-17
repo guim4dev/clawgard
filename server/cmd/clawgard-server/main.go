@@ -9,6 +9,7 @@ import (
 
 	"github.com/clawgard/clawgard/server/internal/config"
 	"github.com/clawgard/clawgard/server/internal/server"
+	"github.com/clawgard/clawgard/server/internal/store"
 )
 
 var version = "dev"
@@ -33,6 +34,22 @@ func run(args []string) (string, error) {
 			return "", err
 		}
 		return "server shut down cleanly", nil
+	case "migrate":
+		cfg, err := config.Load(os.Getenv("CLAWGARD_CONFIG"))
+		if err != nil {
+			return "", err
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		s, err := store.Open(ctx, cfg.DatabaseURL)
+		if err != nil {
+			return "", err
+		}
+		defer s.Close()
+		if err := store.Migrate(ctx, s.Pool()); err != nil {
+			return "", err
+		}
+		return "migrations applied", nil
 	case "version":
 		return version, nil
 	default:
@@ -43,6 +60,7 @@ func run(args []string) (string, error) {
 func usage() string {
 	return `usage:
   clawgard-server serve     Start the relay server
+  clawgard-server migrate   Apply database migrations and exit
   clawgard-server version   Print version`
 }
 

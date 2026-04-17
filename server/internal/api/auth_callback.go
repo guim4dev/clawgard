@@ -150,6 +150,25 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// MockLogin is a dev-only shortcut that sets a session cookie for an email
+// supplied via the ?email query param and redirects to ?redirect. It exists
+// solely to let Playwright E2E run against the real server without standing
+// up a mock IdP. Callers (main.go / server.New) MUST gate its registration
+// behind CLAWGARD_IDP_MODE=mock and CLAWGARD_ENV=dev.
+func (h *AuthHandler) MockLogin(w http.ResponseWriter, r *http.Request) {
+	email := r.URL.Query().Get("email")
+	if email == "" {
+		http.Error(w, "email required", http.StatusBadRequest)
+		return
+	}
+	redirect := r.URL.Query().Get("redirect")
+	if redirect == "" || !strings.HasPrefix(redirect, "/") {
+		redirect = "/"
+	}
+	h.cfg.Signer.SetCookie(w, email, h.cfg.SessionTTL, h.cfg.Dev)
+	http.Redirect(w, r, redirect, http.StatusFound)
+}
+
 func (h *AuthHandler) exchangeCode(ctx context.Context, code, verifier string) (string, error) {
 	form := url.Values{}
 	form.Set("grant_type", "authorization_code")

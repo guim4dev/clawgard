@@ -101,20 +101,27 @@ func New(ctx context.Context, cfg config.Config) (*Server, error) {
 		})
 		r.Method(http.MethodGet, "/v1/me", meHandler)
 
-		if cfg.OIDCClientID != "" && cfg.OIDCTokenURL != "" {
-			authHandler := api.NewAuthHandler(api.AuthConfig{
-				IdPAuthURL:   cfg.OIDCAuthURL,
-				IdPTokenURL:  cfg.OIDCTokenURL,
-				ClientID:     cfg.OIDCClientID,
-				ClientSecret: cfg.OIDCClientSecret,
-				RedirectURL:  cfg.OIDCRedirectURL,
-				Signer:       signer,
-				StateStore:   api.NewMemoryStateStore(),
-				Dev:          cfg.DevMode,
-			})
+		// Build an AuthHandler whenever we have a signer; it's needed for both
+		// real OIDC and the dev-only mock login. Logout always works because it
+		// just clears the cookie.
+		authHandler := api.NewAuthHandler(api.AuthConfig{
+			IdPAuthURL:   cfg.OIDCAuthURL,
+			IdPTokenURL:  cfg.OIDCTokenURL,
+			ClientID:     cfg.OIDCClientID,
+			ClientSecret: cfg.OIDCClientSecret,
+			RedirectURL:  cfg.OIDCRedirectURL,
+			Signer:       signer,
+			StateStore:   api.NewMemoryStateStore(),
+			Dev:          cfg.DevMode,
+		})
+		r.Post("/auth/logout", authHandler.Logout)
+		switch {
+		case cfg.IdPMode == "mock" && cfg.DevMode:
+			// Mock IdP: used by Playwright E2E. Accepts ?email=&redirect=.
+			r.Get("/auth/login", authHandler.MockLogin)
+		case cfg.OIDCClientID != "" && cfg.OIDCTokenURL != "":
 			r.Get("/auth/login", authHandler.Login)
 			r.Get("/auth/callback", authHandler.Callback)
-			r.Post("/auth/logout", authHandler.Logout)
 		}
 
 		// SPA fallback must come last. The handler itself rejects /v1/* and

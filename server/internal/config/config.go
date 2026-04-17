@@ -34,6 +34,10 @@ type Config struct {
 	AdminEmails []string
 	// PublicURL is the externally visible server origin (used for OIDC redirect defaults).
 	PublicURL string
+	// IdPMode selects the browser login flow. "" or "oidc" = real PKCE exchange,
+	// "mock" = dev-only mock login that accepts any email via query param. Must
+	// only be used when DevMode is true; main.go enforces this.
+	IdPMode string
 }
 
 type fileSchema map[string]struct {
@@ -90,7 +94,13 @@ func Load(path string) (Config, error) {
 	if v := os.Getenv("CLAWGARD_HTTP_ADDR"); v != "" {
 		cfg.HTTPAddr = v
 	}
+	if v := os.Getenv("CLAWGARD_PORT"); v != "" {
+		cfg.HTTPAddr = ":" + v
+	}
 	if v := os.Getenv("CLAWGARD_DATABASE_URL"); v != "" {
+		cfg.DatabaseURL = v
+	}
+	if v := os.Getenv("CLAWGARD_DB_URL"); v != "" {
 		cfg.DatabaseURL = v
 	}
 	if v := os.Getenv("CLAWGARD_OIDC_ISSUER"); v != "" {
@@ -140,6 +150,12 @@ func Load(path string) (Config, error) {
 	}
 	if v := os.Getenv("CLAWGARD_PUBLIC_URL"); v != "" {
 		cfg.PublicURL = v
+	}
+	if v := os.Getenv("CLAWGARD_IDP_MODE"); v != "" {
+		cfg.IdPMode = v
+	}
+	if os.Getenv("CLAWGARD_ENV") == "dev" {
+		cfg.DevMode = true
 	}
 
 	return cfg, nil
