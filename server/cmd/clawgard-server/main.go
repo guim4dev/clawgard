@@ -1,15 +1,49 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
+
+	"github.com/clawgard/clawgard/server/internal/config"
+	"github.com/clawgard/clawgard/server/internal/server"
 )
+
+var version = "dev"
 
 func run(args []string) (string, error) {
 	if len(args) < 2 {
-		return "usage: clawgard-server <serve|version|migrate>", nil
+		return usage(), nil
 	}
-	return fmt.Sprintf("subcommand %q not implemented yet", args[1]), nil
+	switch args[1] {
+	case "serve":
+		cfg, err := config.Load(os.Getenv("CLAWGARD_CONFIG"))
+		if err != nil {
+			return "", err
+		}
+		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		defer cancel()
+		srv, err := server.New(ctx, cfg)
+		if err != nil {
+			return "", err
+		}
+		if err := srv.Run(ctx); err != nil {
+			return "", err
+		}
+		return "server shut down cleanly", nil
+	case "version":
+		return version, nil
+	default:
+		return usage(), fmt.Errorf("unknown subcommand %q", args[1])
+	}
+}
+
+func usage() string {
+	return `usage:
+  clawgard-server serve     Start the relay server
+  clawgard-server version   Print version`
 }
 
 func main() {
