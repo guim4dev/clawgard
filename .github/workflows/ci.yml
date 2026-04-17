@@ -166,6 +166,26 @@ jobs:
       - run: pnpm --filter @clawgard/buddy-skill run build
       - run: pnpm --filter @clawgard/buddy-skill run test
 
+  reproducible:
+    runs-on: ubuntu-latest
+    needs: lint-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26.2"   # must match release.yml / go.work
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.3.0
+      - run: make generate
+      - run: ./scripts/release/check-reproducible.sh
+      - run: ./scripts/release/test-build-skill-hashes.sh
+
   verify-buddy-skill-hashes:
     runs-on: ubuntu-latest
     steps:
