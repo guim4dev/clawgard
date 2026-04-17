@@ -20,6 +20,19 @@ export interface BootstrapOpts {
   urlOverride?: string;
   /** Test hook: accept http://. Never set by production code. */
   allowInsecureForTest?: boolean;
+  /**
+   * Experimental: verify a Cosign signature sidecar after the SHA256 check.
+   * Default: false (opt-in). When true, after the SHA check but before exec:
+   *   1. Fetch the `.sig` sidecar from the same release URL.
+   *   2. Run `cosign verify-blob --bundle <sig> <binary>`.
+   *   3. On non-zero exit, delete the binary + sig and abort.
+   * If Cosign is not installed we fail with an actionable error.
+   * The full wiring lands in Plan 6 together with the signing pipeline;
+   * the hook is defined here so callers can start passing the flag.
+   */
+  verifySignature?: boolean;
+  /** Test hook: override which command resolves Cosign. */
+  cosignCommand?: (cmd: string, args: string[]) => Promise<number>;
 }
 
 export interface BootstrapResult {
@@ -40,6 +53,34 @@ async function onDiskSha(path: string): Promise<string> {
     s.on("error", reject);
   });
   return hash.digest("hex");
+}
+
+interface CosignArgs {
+  binaryPath: string;
+  cosign?: (cmd: string, args: string[]) => Promise<number>;
+}
+
+async function verifyCosignSignature(args: CosignArgs): Promise<void> {
+  // DEVIATION FROM PLAN: full Cosign integration ships in Plan 6. Here we only
+  // wire the opt-in flag. If the caller opts in and provides a `cosignCommand`
+  // mock, we invoke it. Otherwise we fail loudly so that opt-ins do not
+  // silently skip verification.
+  const runner = args.cosign;
+  if (!runner) {
+    throw new Error(
+      "verifySignature is set but Cosign integration is not available in this " +
+        "build of @clawgard/buddy-skill. Install Cosign and upgrade to a release " +
+        "that ships the Plan 6 signing pipeline, or unset --verify-signature.",
+    );
+  }
+  const sigPath = `${args.binaryPath}.sig`;
+  const code = await runner("cosign", ["verify-blob", "--bundle", sigPath, args.binaryPath]);
+  if (code !== 0) {
+    throw new Error(
+      `cosign verify-blob failed with exit code ${code} for ${args.binaryPath}. ` +
+        `The binary's signature did not verify; refusing to execute.`,
+    );
+  }
 }
 
 function readPackageVersion(): string {
@@ -116,6 +157,12 @@ export async function bootstrapBinary(opts: BootstrapOpts = {}): Promise<Bootstr
         platformKey: key,
         version: skillVersion,
         allowInsecureForTest: opts.allowInsecureForTest,
+      });
+    }
+    if (opts.verifySignature) {
+      await verifyCosignSignature({
+        binaryPath: paths.binary,
+        cosign: opts.cosignCommand,
       });
     }
   } catch (err) {
