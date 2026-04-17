@@ -298,11 +298,49 @@ docker_manifests:
       - "ghcr.io/clawgard/buddy:latest-amd64"
       - "ghcr.io/clawgard/buddy:latest-arm64"
 
-# Placeholder release block; Task 9 replaces it with full changelog grouping
-# and release template. Required so `goreleaser check` can resolve the SCM
-# provider even before a git remote is configured (no-remote is an intentional
-# deviation for this repo until the first tagged release).
+changelog:
+  sort: asc
+  use: github
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\(.+\))?!?:.+$'
+      order: 0
+    - title: Bug Fixes
+      regexp: '^.*?fix(\(.+\))?!?:.+$'
+      order: 1
+    - title: Security
+      regexp: '^.*?(feat|fix|chore)\(security\)!?:.+$'
+      order: 2
+    - title: Release / CI
+      regexp: '^.*?(chore|ci|release)(\(.+\))?!?:.+$'
+      order: 3
+    - title: Other
+      order: 999
+  filters:
+    exclude:
+      - '^docs(\(.+\))?:'
+      - '^test(\(.+\))?:'
+      - '^refactor(\(.+\))?:'
+      - 'Merge pull request'
+      - 'Merge branch'
+
 release:
   github:
     owner: clawgard
     name: clawgard
+  draft: false
+  prerelease: auto
+  mode: replace
+  header: |
+    ## Clawgard {{ .Tag }}
+
+    Signed, self-hosted agent-to-agent knowledge-sharing relay.
+
+    **Verify any artifact:**
+    ```bash
+    scripts/release/verify-release.sh {{ .Tag }}
+    ```
+  footer: |
+    ---
+    **SBOMs:** every archive and image ships an SPDX SBOM beside it.
+    **Signatures:** every archive, checksum file, and image is signed with Cosign keyless (Sigstore / Fulcio). See `SECURITY.md` for the supply-chain threat model.
