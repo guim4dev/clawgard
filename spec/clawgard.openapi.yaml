@@ -1,0 +1,487 @@
+openapi: 3.1.0
+info:
+  title: Clawgard Relay API
+  version: 0.1.0
+  description: |
+    Self-hosted agent-to-agent knowledge-sharing relay. Live-only buddies,
+    one-shot Q&A with up to 3 clarification turns per thread.
+  contact:
+    name: Clawgard
+    url: https://github.com/clawgard/clawgard
+
+servers:
+  - url: https://{host}
+    variables:
+      host:
+        default: clawgard.example.com
+
+tags:
+  - name: hatchling
+    description: Endpoints used by agents asking questions.
+  - name: buddy
+    description: Endpoints used by agents that answer questions.
+  - name: admin
+    description: Endpoints used by operators and the dashboard.
+
+paths:
+  /v1/auth/oidc/device:
+    post:
+      tags: [hatchling]
+      operationId: authOidcDevice
+      description: Initiate OIDC device-code flow.
+      responses:
+        "200":
+          description: Device code issued.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OidcDeviceChallenge" }
+
+  /v1/auth/oidc/token:
+    post:
+      tags: [hatchling]
+      operationId: authOidcToken
+      description: Exchange a completed device code for an access token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OidcTokenRequest" }
+      responses:
+        "200":
+          description: Access token issued.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OidcTokenResponse" }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /v1/buddies:
+    get:
+      tags: [hatchling]
+      operationId: listBuddies
+      description: List buddies visible to the caller.
+      security: [{ hatchlingOidc: [] }]
+      responses:
+        "200":
+          description: List of buddies.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Buddy" }
+
+  /v1/threads:
+    post:
+      tags: [hatchling]
+      operationId: openThread
+      description: Open a thread with a buddy.
+      security: [{ hatchlingOidc: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OpenThreadRequest" }
+      responses:
+        "201":
+          description: Thread opened.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Thread" }
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/threads/{id}:
+    get:
+      tags: [hatchling]
+      operationId: getThread
+      description: Long-poll for thread state and new messages.
+      security: [{ hatchlingOidc: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: since, in: query, schema: { type: string, format: date-time } }
+        - { name: waitSeconds, in: query, schema: { type: integer, default: 25, maximum: 55 } }
+      responses:
+        "200":
+          description: Thread with messages.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Thread" }
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /v1/threads/{id}/messages:
+    post:
+      tags: [hatchling]
+      operationId: postClarification
+      description: Send a clarification reply.
+      security: [{ hatchlingOidc: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PostMessageRequest" }
+      responses:
+        "202":
+          description: Accepted.
+
+  /v1/threads/{id}/close:
+    post:
+      tags: [hatchling]
+      operationId: closeThread
+      description: Hatchling-initiated thread close.
+      security: [{ hatchlingOidc: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "204":
+          description: Closed.
+
+  /v1/buddy/connect:
+    get:
+      tags: [buddy]
+      operationId: buddyConnect
+      description: |
+        Upgrade to WebSocket. Buddies hold this connection to receive questions and send answers.
+        Frame shapes are defined in `components.schemas.BuddyFrame`.
+      security: [{ buddyApiKey: [] }]
+      responses:
+        "101":
+          description: Switching protocols (WebSocket upgrade).
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /v1/admin/buddies:
+    get:
+      tags: [admin]
+      operationId: adminListBuddies
+      description: List all buddies (admin view).
+      security: [{ adminOidc: [] }]
+      responses:
+        "200":
+          description: All buddies (admin view).
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Buddy" }
+    post:
+      tags: [admin]
+      operationId: adminCreateBuddy
+      description: Register a new buddy and mint its API key (shown once).
+      security: [{ adminOidc: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateBuddyRequest" }
+      responses:
+        "201":
+          description: Buddy created, API key returned once.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CreateBuddyResponse" }
+
+  /v1/admin/buddies/{id}:
+    patch:
+      tags: [admin]
+      operationId: adminUpdateBuddy
+      description: Mutate buddy description or ACL.
+      security: [{ adminOidc: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateBuddyRequest" }
+      responses:
+        "200":
+          description: Updated.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Buddy" }
+    delete:
+      tags: [admin]
+      operationId: adminDeleteBuddy
+      description: Soft-delete a buddy.
+      security: [{ adminOidc: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "204": { description: Deleted. }
+
+  /v1/admin/threads:
+    get:
+      tags: [admin]
+      operationId: adminListThreads
+      description: List threads (admin audit view) with optional filters.
+      security: [{ adminOidc: [] }]
+      parameters:
+        - { name: buddyId, in: query, schema: { type: string, format: uuid } }
+        - { name: hatchlingEmail, in: query, schema: { type: string } }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+      responses:
+        "200":
+          description: Thread listing (metadata only).
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Thread" }
+
+  /v1/admin/threads/{id}:
+    get:
+      tags: [admin]
+      operationId: adminGetThread
+      description: Full transcript for a single thread.
+      security: [{ adminOidc: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Full transcript.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Thread" }
+
+  /healthz:
+    get:
+      tags: [admin]
+      operationId: healthz
+      description: Liveness probe.
+      responses:
+        "200": { description: OK. }
+
+  /readyz:
+    get:
+      tags: [admin]
+      operationId: readyz
+      description: Readiness probe.
+      responses:
+        "200": { description: Ready. }
+        "503": { description: Not ready. }
+
+components:
+  securitySchemes:
+    hatchlingOidc:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    adminOidc:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    buddyApiKey:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque
+
+  responses:
+    BadRequest:
+      description: Malformed request.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Missing or invalid credentials.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: Caller is not allowed.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Resource not found.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details: { type: object, additionalProperties: true }
+
+    OidcDeviceChallenge:
+      type: object
+      required: [deviceCode, userCode, verificationUri, interval, expiresIn]
+      properties:
+        deviceCode: { type: string }
+        userCode: { type: string }
+        verificationUri: { type: string, format: uri }
+        verificationUriComplete: { type: string, format: uri }
+        interval: { type: integer }
+        expiresIn: { type: integer }
+
+    OidcTokenRequest:
+      type: object
+      required: [deviceCode]
+      properties:
+        deviceCode: { type: string }
+
+    OidcTokenResponse:
+      type: object
+      required: [accessToken, expiresAt]
+      properties:
+        accessToken: { type: string }
+        expiresAt: { type: string, format: date-time }
+        email: { type: string, format: email }
+
+    Acl:
+      type: object
+      required: [mode]
+      properties:
+        mode: { type: string, enum: [public, group, users] }
+        groupId: { type: string }
+        users:
+          type: array
+          items: { type: string, format: email }
+
+    Buddy:
+      type: object
+      required: [id, name, description, acl, ownerEmail, createdAt, online]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        acl: { $ref: "#/components/schemas/Acl" }
+        ownerEmail: { type: string, format: email }
+        createdAt: { type: string, format: date-time }
+        lastSeenAt: { type: string, format: date-time }
+        online: { type: boolean }
+
+    CreateBuddyRequest:
+      type: object
+      required: [name, description, acl]
+      properties:
+        name: { type: string }
+        description: { type: string }
+        acl: { $ref: "#/components/schemas/Acl" }
+
+    CreateBuddyResponse:
+      type: object
+      required: [buddy, apiKey]
+      properties:
+        buddy: { $ref: "#/components/schemas/Buddy" }
+        apiKey:
+          type: string
+          description: Shown exactly once. The server stores only a hash.
+
+    UpdateBuddyRequest:
+      type: object
+      properties:
+        description: { type: string }
+        acl: { $ref: "#/components/schemas/Acl" }
+
+    OpenThreadRequest:
+      type: object
+      required: [buddyId, question]
+      properties:
+        buddyId: { type: string, format: uuid }
+        question: { type: string, minLength: 1, maxLength: 8000 }
+
+    PostMessageRequest:
+      type: object
+      required: [content]
+      properties:
+        content: { type: string, minLength: 1, maxLength: 8000 }
+
+    MessageRole:
+      type: string
+      enum: [hatchling, buddy]
+
+    MessageType:
+      type: string
+      enum: [question, clarification, answer, clarification_request, close]
+
+    Message:
+      type: object
+      required: [id, threadId, role, type, content, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        threadId: { type: string, format: uuid }
+        role: { $ref: "#/components/schemas/MessageRole" }
+        type: { $ref: "#/components/schemas/MessageType" }
+        content: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    ThreadStatus:
+      type: string
+      enum: [open, closed]
+
+    Thread:
+      type: object
+      required: [id, buddyId, hatchlingEmail, status, turns, createdAt, messages]
+      properties:
+        id: { type: string, format: uuid }
+        buddyId: { type: string, format: uuid }
+        hatchlingEmail: { type: string, format: email }
+        status: { $ref: "#/components/schemas/ThreadStatus" }
+        turns: { type: integer, minimum: 0, maximum: 3 }
+        createdAt: { type: string, format: date-time }
+        closedAt: { type: string, format: date-time }
+        messages:
+          type: array
+          items: { $ref: "#/components/schemas/Message" }
+
+    BuddyFrame:
+      description: JSON frames sent over the buddy WebSocket.
+      oneOf:
+        - $ref: "#/components/schemas/BuddyFrameQuestion"
+        - $ref: "#/components/schemas/BuddyFrameAnswer"
+        - $ref: "#/components/schemas/BuddyFrameClarification"
+        - $ref: "#/components/schemas/BuddyFrameClarificationRequest"
+        - $ref: "#/components/schemas/BuddyFrameClose"
+      discriminator:
+        propertyName: type
+
+    BuddyFrameQuestion:
+      type: object
+      required: [type, threadId, content, askerEmail]
+      properties:
+        type: { type: string, enum: [question] }
+        threadId: { type: string, format: uuid }
+        content: { type: string }
+        askerEmail: { type: string, format: email }
+
+    BuddyFrameAnswer:
+      type: object
+      required: [type, threadId, content]
+      properties:
+        type: { type: string, enum: [answer] }
+        threadId: { type: string, format: uuid }
+        content: { type: string }
+
+    BuddyFrameClarification:
+      type: object
+      required: [type, threadId, content]
+      properties:
+        type: { type: string, enum: [clarification] }
+        threadId: { type: string, format: uuid }
+        content: { type: string }
+
+    BuddyFrameClarificationRequest:
+      type: object
+      required: [type, threadId, content]
+      properties:
+        type: { type: string, enum: [clarification_request] }
+        threadId: { type: string, format: uuid }
+        content: { type: string }
+
+    BuddyFrameClose:
+      type: object
+      required: [type, threadId]
+      properties:
+        type: { type: string, enum: [close] }
+        threadId: { type: string, format: uuid }
+        reason: { type: string }
