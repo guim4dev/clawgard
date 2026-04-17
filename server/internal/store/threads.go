@@ -113,14 +113,14 @@ type ListFilter struct {
 	HatchlingEmail string
 	From, To       *time.Time
 	Limit          int
+	Offset         int
 }
 
-// ListWithFilter returns threads matching filters (admin).
-func (t *ThreadStore) ListWithFilter(ctx context.Context, f ListFilter) ([]Thread, error) {
-	// Simple approach: dynamic WHERE with args.
-	q := `SELECT id, buddy_id, hatchling_email, status, turns, created_at, last_activity_at, closed_at, close_reason FROM threads WHERE 1=1`
+// buildFilterClause shared by ListWithFilter and CountWithFilter.
+func (f ListFilter) buildFilterClause(startIdx int) (string, []any, int) {
+	q := " WHERE 1=1"
 	args := []any{}
-	idx := 1
+	idx := startIdx
 	if f.BuddyID != nil {
 		q += ` AND buddy_id=$` + itoa(idx)
 		args = append(args, *f.BuddyID)
@@ -141,10 +141,21 @@ func (t *ThreadStore) ListWithFilter(ctx context.Context, f ListFilter) ([]Threa
 		args = append(args, *f.To)
 		idx++
 	}
-	q += ` ORDER BY created_at DESC`
+	return q, args, idx
+}
+
+// ListWithFilter returns threads matching filters (admin).
+func (t *ThreadStore) ListWithFilter(ctx context.Context, f ListFilter) ([]Thread, error) {
+	clause, args, idx := f.buildFilterClause(1)
+	q := `SELECT id, buddy_id, hatchling_email, status, turns, created_at, last_activity_at, closed_at, close_reason FROM threads` + clause + ` ORDER BY created_at DESC`
 	if f.Limit > 0 {
 		q += ` LIMIT $` + itoa(idx)
 		args = append(args, f.Limit)
+		idx++
+	}
+	if f.Offset > 0 {
+		q += ` OFFSET $` + itoa(idx)
+		args = append(args, f.Offset)
 	}
 	rows, err := t.s.pool.Query(ctx, q, args...)
 	if err != nil {
@@ -165,6 +176,17 @@ func (t *ThreadStore) ListWithFilter(ctx context.Context, f ListFilter) ([]Threa
 		out = append(out, tr)
 	}
 	return out, rows.Err()
+}
+
+// CountWithFilter returns the total number of threads matching the filter (ignoring Limit/Offset).
+func (t *ThreadStore) CountWithFilter(ctx context.Context, f ListFilter) (int, error) {
+	clause, args, _ := f.buildFilterClause(1)
+	q := `SELECT COUNT(*) FROM threads` + clause
+	var n int
+	if err := t.s.pool.QueryRow(ctx, q, args...).Scan(&n); err != nil {
+		return 0, err
+	}
+	return n, nil
 }
 
 // ListIdleOpen returns open threads whose last_activity_at is older than cutoff.

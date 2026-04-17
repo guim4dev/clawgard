@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strconv"
+	"time"
 
 	"github.com/clawgard/clawgard/server/internal/auth"
 	"github.com/clawgard/clawgard/server/internal/store"
@@ -158,16 +160,25 @@ func adminDeleteBuddy(s *store.Store) http.HandlerFunc {
 
 func adminListThreads(s *store.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		threads, err := s.Threads().ListWithFilter(r.Context(), parseThreadFilter(r))
+		filter := parseThreadFilter(r)
+		total, err := s.Threads().CountWithFilter(r.Context(), filter)
 		if err != nil {
 			writeError(w, http.StatusInternalServerError, "internal", err.Error())
 			return
 		}
-		out := make([]map[string]any, len(threads))
-		for i, t := range threads {
-			out[i] = toThreadResp(t, nil)
+		threads, err := s.Threads().ListWithFilter(r.Context(), filter)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal", err.Error())
+			return
 		}
-		writeJSON(w, http.StatusOK, out)
+		items := make([]map[string]any, len(threads))
+		for i, t := range threads {
+			items[i] = toThreadResp(t, nil)
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"items": items,
+			"total": total,
+		})
 	}
 }
 
@@ -229,14 +240,42 @@ func toThreadResp(t store.Thread, msgs []store.Message) map[string]any {
 
 func parseThreadFilter(r *http.Request) store.ListFilter {
 	var f store.ListFilter
-	if v := r.URL.Query().Get("buddyId"); v != "" {
+	q := r.URL.Query()
+	if v := q.Get("buddyId"); v != "" {
 		if id, err := uuid.Parse(v); err == nil {
 			f.BuddyID = &id
 		}
 	}
-	f.HatchlingEmail = r.URL.Query().Get("hatchlingEmail")
-	// from/to omitted for MVP brevity; can be added here.
-	f.Limit = 100
+	f.HatchlingEmail = q.Get("hatchlingEmail")
+	if v := q.Get("from"); v != "" {
+		if ts, err := time.Parse(time.RFC3339, v); err == nil {
+			f.From = &ts
+		}
+	}
+	if v := q.Get("to"); v != "" {
+		if ts, err := time.Parse(time.RFC3339, v); err == nil {
+			f.To = &ts
+		}
+	}
+
+	// Pagination: page (1-based) + pageSize, defaults 1 / 25, pageSize capped at 200.
+	pageSize := 25
+	if v := q.Get("pageSize"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			if n > 200 {
+				n = 200
+			}
+			pageSize = n
+		}
+	}
+	page := 1
+	if v := q.Get("page"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			page = n
+		}
+	}
+	f.Limit = pageSize
+	f.Offset = (page - 1) * pageSize
 	return f
 }
 
