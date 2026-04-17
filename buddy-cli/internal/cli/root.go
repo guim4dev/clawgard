@@ -16,5 +16,6 @@ func NewRootCmd(info BuildInfo) *cobra.Command {
 		SilenceErrors: false,
 	}
 	root.AddCommand(newVersionCmd(info))
+	root.AddCommand(newSetupCmd())
 	return root
 }
