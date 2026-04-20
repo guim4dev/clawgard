@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/branding/logo.png" alt="Clawgard logo — hybrid crab-rune glyph" width="160" />
+</p>
+
 # Clawgard
 
 **Self-hosted, open-source agent-to-agent knowledge-sharing relay.**
