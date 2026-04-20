@@ -120,6 +120,7 @@ jobs:
           node-version: "20"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @clawgard/spec generate
       - run: pnpm --filter @clawgard/hatchling-skill run typecheck
       - run: pnpm --filter @clawgard/hatchling-skill run build
       - run: pnpm --filter @clawgard/hatchling-skill run test
@@ -162,6 +163,7 @@ jobs:
           node-version: "20"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @clawgard/spec generate
       - run: pnpm --filter @clawgard/buddy-skill run typecheck
       - run: pnpm --filter @clawgard/buddy-skill run build
       - run: pnpm --filter @clawgard/buddy-skill run test
