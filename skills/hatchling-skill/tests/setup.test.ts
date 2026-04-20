@@ -49,7 +49,7 @@ describe("runSetup", () => {
     expect(cfg.default.relayUrl).toBe(relay.url);
 
     const tok = readFileSync(
-      join(sb.xdgConfigHome, "clawgard", "hatchling.token"),
+      join(sb.xdgConfigHome, "clawgard", "tokens", "default.token"),
       "utf8",
     ).trim();
     expect(tok).toBe("mock-access-token");
@@ -63,7 +63,7 @@ describe("runSetup", () => {
     await runSetup({ flags: {}, env });
 
     expect((text as unknown as Mock).mock.calls.length).toBe(0);
-    expect(existsSync(join(sb.xdgConfigHome, "clawgard", "hatchling.token"))).toBe(true);
+    expect(existsSync(join(sb.xdgConfigHome, "clawgard", "tokens", "default.token"))).toBe(true);
   });
 
   it("writes to a named profile when --profile is passed", async () => {
@@ -78,5 +78,25 @@ describe("runSetup", () => {
     );
     expect(cfg.staging.relayUrl).toBe(relay.url);
     expect(cfg.default).toBeUndefined();
+  });
+
+  it("setting up a second alias leaves the first alias's token untouched", async () => {
+    const env = sb.withEnv();
+    (text as unknown as Mock).mockResolvedValueOnce(relay.url);
+    (confirm as unknown as Mock).mockResolvedValueOnce(true);
+    relay.pollsBeforeSuccess(0);
+    await runSetup({ flags: { profile: "default" }, env });
+
+    const defaultTokenPath = join(sb.xdgConfigHome, "clawgard", "tokens", "default.token");
+    const before = readFileSync(defaultTokenPath, "utf8");
+
+    (text as unknown as Mock).mockResolvedValueOnce(relay.url);
+    (confirm as unknown as Mock).mockResolvedValueOnce(true);
+    relay.pollsBeforeSuccess(0);
+    await runSetup({ flags: { profile: "staging" }, env });
+
+    const after = readFileSync(defaultTokenPath, "utf8");
+    expect(after).toBe(before);
+    expect(existsSync(join(sb.xdgConfigHome, "clawgard", "tokens", "staging.token"))).toBe(true);
   });
 });

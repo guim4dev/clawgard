@@ -2,7 +2,7 @@ import { Command } from "commander";
 import * as p from "@clack/prompts";
 import open from "open";
 import { initiateDeviceCode, pollForToken } from "./lib/oidc.js";
-import { writeConfig, writeToken } from "./lib/config.js";
+import { migrateLegacyToken, writeConfig, writeToken } from "./lib/config.js";
 import { HttpError, humanizeError } from "./lib/http.js";
 
 export interface SetupInput {
@@ -12,6 +12,11 @@ export interface SetupInput {
 
 export async function runSetup(input: SetupInput): Promise<void> {
   p.intro("Clawgard hatchling setup");
+
+  const mig = migrateLegacyToken(input.env);
+  if (mig.migrated) {
+    p.log.info(`migrated legacy token file ${mig.from} → ${mig.to}`);
+  }
 
   const profile = input.flags.profile ?? input.env.CLAWGARD_PROFILE ?? "default";
 
@@ -48,7 +53,7 @@ export async function runSetup(input: SetupInput): Promise<void> {
   });
 
   writeConfig({ relayUrl }, profile, input.env);
-  writeToken(token.accessToken, input.env);
+  writeToken(token.accessToken, input.env, profile);
 
   p.log.success(`Signed in as ${token.email ?? "(unknown)"}. Saved profile "${profile}".`);
   p.outro("Setup complete.");

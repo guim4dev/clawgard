@@ -1,5 +1,5 @@
 import { Command } from "commander";
-import { resolveConfig } from "./lib/config.js";
+import { missingTokenError, resolveConfig } from "./lib/config.js";
 import { apiFetch, HttpError, humanizeError } from "./lib/http.js";
 import type { Buddy } from "./types.js";
 
@@ -10,9 +10,7 @@ export interface ListInput {
 
 export async function runList(input: ListInput): Promise<void> {
   const cfg = resolveConfig(input);
-  if (!cfg.token) {
-    throw new Error("no token configured — run `clawgard-hatchling-setup`");
-  }
+  if (!cfg.token) throw missingTokenError(cfg.profile);
 
   const buddies = await apiFetch<Buddy[]>({
     baseUrl: cfg.relayUrl,

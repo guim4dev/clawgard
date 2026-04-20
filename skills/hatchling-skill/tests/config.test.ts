@@ -72,14 +72,14 @@ describe("resolveConfig — precedence", () => {
   });
 
   it("CLAWGARD_TOKEN env wins over token file", () => {
-    writeToken("file-token", sb.withEnv());
+    writeToken("file-token", sb.withEnv(), "default");
     const env = sb.withEnv({ CLAWGARD_URL: "https://r", CLAWGARD_TOKEN: "env-token" });
     const cfg = resolveConfig({ flags: {}, env });
     expect(cfg.token).toBe("env-token");
   });
 
   it("reads token from file when CLAWGARD_TOKEN is unset", () => {
-    writeToken("file-token", sb.withEnv());
+    writeToken("file-token", sb.withEnv(), "default");
     const env = sb.withEnv({ CLAWGARD_URL: "https://r" });
     const cfg = resolveConfig({ flags: {}, env });
     expect(cfg.token).toBe("file-token");
@@ -97,15 +97,15 @@ describe("writeConfig / writeToken", () => {
     }
   });
 
-  it("writes hatchling.token with mode 0600 on unix", () => {
+  it("writes the per-alias token file with mode 0600 on unix", () => {
     const env = sb.withEnv();
-    writeToken("abc", env);
-    const path = join(sb.xdgConfigHome, "clawgard", "hatchling.token");
+    writeToken("abc", env, "default");
+    const path = join(sb.xdgConfigHome, "clawgard", "tokens", "default.token");
     const st = statSync(path);
     if (process.platform !== "win32") {
       expect(st.mode & 0o777).toBe(0o600);
     }
-    expect(readToken(env)).toBe("abc");
+    expect(readToken(env, "default")).toBe("abc");
   });
 
   it("preserves existing profiles when writing a new one", () => {

@@ -1,5 +1,10 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { configDir, configFilePath, tokenFilePath } from "../src/lib/config.js";
+import {
+  configDir,
+  configFilePath,
+  legacyTokenFilePath,
+  tokenFilePath,
+} from "../src/lib/config.js";
 
 const originalPlatform = process.platform;
 afterEach(() =>
@@ -22,7 +27,10 @@ describe("Windows paths", () => {
     expect(configFilePath(env).replaceAll("\\", "/")).toBe(
       "C:/Users/Alice/AppData/Roaming/Clawgard/config.json",
     );
-    expect(tokenFilePath(env).replaceAll("\\", "/")).toBe(
+    expect(tokenFilePath(env, "default").replaceAll("\\", "/")).toBe(
+      "C:/Users/Alice/AppData/Roaming/Clawgard/tokens/default.token",
+    );
+    expect(legacyTokenFilePath(env).replaceAll("\\", "/")).toBe(
       "C:/Users/Alice/AppData/Roaming/Clawgard/hatchling.token",
     );
   });

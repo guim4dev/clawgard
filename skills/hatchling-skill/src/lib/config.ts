@@ -1,5 +1,12 @@
 import envPaths from "env-paths";
-import { mkdirSync, readFileSync, writeFileSync, existsSync, chmodSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 
 export interface ProfileConfig {
@@ -19,8 +26,17 @@ export interface ResolvedConfig {
   token?: string;
 }
 
+export interface MigrationResult {
+  migrated: boolean;
+  from?: string;
+  to?: string;
+}
+
 const SETUP_HINT =
   "run `clawgard-hatchling-setup` first, or set CLAWGARD_URL, or pass --relay-url";
+
+const LEGACY_TOKEN_FILENAME = "hatchling.token";
+const TOKENS_DIRNAME = "tokens";
 
 export function configDir(env: NodeJS.ProcessEnv): string {
   const paths = envPaths("clawgard", { suffix: "" });
@@ -34,8 +50,12 @@ export function configFilePath(env: NodeJS.ProcessEnv): string {
   return join(configDir(env), "config.json");
 }
 
-export function tokenFilePath(env: NodeJS.ProcessEnv): string {
-  return join(configDir(env), "hatchling.token");
+export function tokenFilePath(env: NodeJS.ProcessEnv, alias: string): string {
+  return join(configDir(env), TOKENS_DIRNAME, `${alias}.token`);
+}
+
+export function legacyTokenFilePath(env: NodeJS.ProcessEnv): string {
+  return join(configDir(env), LEGACY_TOKEN_FILENAME);
 }
 
 function readConfigFile(env: NodeJS.ProcessEnv): ConfigFile | undefined {
@@ -44,14 +64,37 @@ function readConfigFile(env: NodeJS.ProcessEnv): ConfigFile | undefined {
   return JSON.parse(readFileSync(path, "utf8")) as ConfigFile;
 }
 
-export function readToken(env: NodeJS.ProcessEnv): string | undefined {
-  const path = tokenFilePath(env);
+export function readToken(env: NodeJS.ProcessEnv, alias: string): string | undefined {
+  const path = tokenFilePath(env, alias);
   if (!existsSync(path)) return undefined;
   return readFileSync(path, "utf8").trim();
 }
 
+export function migrateLegacyToken(env: NodeJS.ProcessEnv): MigrationResult {
+  const legacy = legacyTokenFilePath(env);
+  if (!existsSync(legacy)) return { migrated: false };
+
+  const target = tokenFilePath(env, "default");
+  if (existsSync(target)) {
+    unlinkSync(legacy);
+    return { migrated: false };
+  }
+
+  const contents = readFileSync(legacy, "utf8");
+  ensureTokensDir(env);
+  writeFile600(target, contents);
+  unlinkSync(legacy);
+  return { migrated: true, from: legacy, to: target };
+}
+
 export function resolveConfig(input: ResolveInput): ResolvedConfig {
   const profile = input.flags.profile ?? input.env.CLAWGARD_PROFILE ?? "default";
+
+  const mig = migrateLegacyToken(input.env);
+  if (mig.migrated) {
+    console.error(`clawgard: migrated legacy token file ${mig.from} → ${mig.to}`);
+  }
+
   const file = readConfigFile(input.env);
 
   let relayUrl: string | undefined = input.flags.relayUrl ?? input.env.CLAWGARD_URL;
@@ -70,12 +113,24 @@ export function resolveConfig(input: ResolveInput): ResolvedConfig {
     throw new Error(`no relay URL configured — ${SETUP_HINT}`);
   }
 
-  const token = input.env.CLAWGARD_TOKEN ?? readToken(input.env);
+  const token = input.env.CLAWGARD_TOKEN ?? readToken(input.env, profile);
   return { relayUrl, profile, token };
+}
+
+export function missingTokenError(alias: string): Error {
+  return new Error(
+    `no token for relay "${alias}" — run \`clawgard-hatchling-setup --profile ${alias}\``,
+  );
 }
 
 function ensureDir(env: NodeJS.ProcessEnv): string {
   const dir = configDir(env);
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  return dir;
+}
+
+function ensureTokensDir(env: NodeJS.ProcessEnv): string {
+  const dir = join(configDir(env), TOKENS_DIRNAME);
   mkdirSync(dir, { recursive: true, mode: 0o700 });
   return dir;
 }
@@ -100,7 +155,7 @@ export function writeConfig(
   writeFile600(configFilePath(env), JSON.stringify(existing, null, 2) + "\n");
 }
 
-export function writeToken(token: string, env: NodeJS.ProcessEnv): void {
-  ensureDir(env);
-  writeFile600(tokenFilePath(env), token);
+export function writeToken(token: string, env: NodeJS.ProcessEnv, alias: string): void {
+  ensureTokensDir(env);
+  writeFile600(tokenFilePath(env, alias), token);
 }

@@ -18,7 +18,7 @@ describe("runList", () => {
   it("prints id, name, description, online status for each buddy", async () => {
     const env = sb.withEnv();
     writeConfig({ relayUrl: "https://relay.test" }, "default", env);
-    writeToken("tok", env);
+    writeToken("tok", env, "default");
 
     server.use(
       http.get("https://relay.test/v1/buddies", ({ request }) => {

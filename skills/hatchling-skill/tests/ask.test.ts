@@ -15,7 +15,7 @@ let sb: Sandbox;
 beforeEach(() => {
   sb = makeSandbox();
   writeConfig({ relayUrl: "https://relay.test" }, "default", sb.withEnv());
-  writeToken("tok", sb.withEnv());
+  writeToken("tok", sb.withEnv(), "default");
 });
 afterEach(() => sb.cleanup());
 
