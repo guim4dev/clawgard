@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import { Command } from "commander";
 import * as p from "@clack/prompts";
 import open from "open";
@@ -143,6 +144,6 @@ export async function main(argv: string[] = process.argv): Promise<void> {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   await main();
 }
