@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { execSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
-const root = new URL("..", import.meta.url).pathname;
+const root = fileURLToPath(new URL("..", import.meta.url));
 
 function packFiles(): string[] {
   const out = execSync("npm pack --dry-run --json", { cwd: root, stdio: "pipe" }).toString();

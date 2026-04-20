@@ -42,6 +42,7 @@ jobs:
           node-version: "20"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.3.0
       - run: make generate
       - run: make dashboard-test
 
@@ -72,6 +73,7 @@ jobs:
       - uses: pnpm/action-setup@v4
         with: { version: 9 }
       - run: pnpm install --frozen-lockfile
+      - run: go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.3.0
       - run: make generate
       - name: Install Playwright browsers
         run: pnpm --filter @clawgard/dashboard exec playwright install --with-deps chromium

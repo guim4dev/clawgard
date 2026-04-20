@@ -2,8 +2,9 @@ import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync } from "node:fs";
 import { execSync } from "node:child_process";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = new URL("..", import.meta.url).pathname;
+const root = fileURLToPath(new URL("..", import.meta.url));
 
 describe("build output", () => {
   it("produces scripts/{setup,list,ask}.js after build", () => {
