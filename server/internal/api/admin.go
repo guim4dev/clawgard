@@ -21,6 +21,7 @@ func MountAdmin(r chi.Router, s *store.Store) {
 		r.Get("/buddies", adminListBuddies(s))
 		r.Post("/buddies", adminCreateBuddy(s))
 		r.Patch("/buddies/{id}", adminUpdateBuddy(s))
+		r.Post("/buddies/{id}/rotate-key", adminRotateBuddyKey(s))
 		r.Delete("/buddies/{id}", adminDeleteBuddy(s))
 		r.Get("/threads", adminListThreads(s))
 		r.Get("/threads/{id}", adminGetThread(s))
@@ -136,6 +137,35 @@ func adminUpdateBuddy(s *store.Store) http.HandlerFunc {
 			return
 		}
 		writeJSON(w, http.StatusOK, toBuddyResp(b))
+	}
+}
+
+func adminRotateBuddyKey(s *store.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := uuid.Parse(chi.URLParam(r, "id"))
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "bad_request", "bad id")
+			return
+		}
+		key, err := auth.GenerateAPIKey()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal", "keygen failed")
+			return
+		}
+		hash, err := auth.HashAPIKey(key)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal", "hash failed")
+			return
+		}
+		if err := s.Buddies().UpdateAPIKeyHash(r.Context(), id, hash); err != nil {
+			if errors.Is(err, store.ErrBuddyNotFound) {
+				writeError(w, http.StatusNotFound, "not_found", "buddy not found")
+				return
+			}
+			writeError(w, http.StatusInternalServerError, "internal", err.Error())
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"apiKey": key})
 	}
 }
 

@@ -8,16 +8,23 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// APIKeyLength is the length of base64url-encoded API keys.
-const APIKeyLength = 43 // 32 random bytes base64url-encoded (no padding)
+// APIKeyPrefix marks clawgard-issued keys so operators (and the dashboard
+// reveal UI) can recognise them at a glance. Never stored — the bcrypt hash
+// of the full prefixed key is what lives in the DB.
+const APIKeyPrefix = "ck_"
 
-// GenerateAPIKey returns a cryptographically random opaque API key.
+// APIKeyLength is the length of a full API key: the "ck_" prefix plus 32
+// random bytes base64url-encoded (43 chars, no padding).
+const APIKeyLength = len(APIKeyPrefix) + 43
+
+// GenerateAPIKey returns a cryptographically random opaque API key prefixed
+// with "ck_" so it is visibly a clawgard credential.
 func GenerateAPIKey() (string, error) {
 	buf := make([]byte, 32)
 	if _, err := rand.Read(buf); err != nil {
 		return "", err
 	}
-	return base64.RawURLEncoding.EncodeToString(buf), nil
+	return APIKeyPrefix + base64.RawURLEncoding.EncodeToString(buf), nil
 }
 
 // HashAPIKey bcrypt-hashes an API key for storage. Cost is 12.

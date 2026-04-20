@@ -186,6 +186,20 @@ func (b *BuddyStore) TouchLastSeen(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+// UpdateAPIKeyHash replaces the stored api_key_hash. Used by the admin
+// rotate-key endpoint. Returns ErrBuddyNotFound if the buddy is deleted.
+func (b *BuddyStore) UpdateAPIKeyHash(ctx context.Context, id uuid.UUID, hash string) error {
+	ct, err := b.s.pool.Exec(ctx,
+		`UPDATE buddies SET api_key_hash=$2 WHERE id=$1 AND deleted_at IS NULL`, id, hash)
+	if err != nil {
+		return err
+	}
+	if ct.RowsAffected() == 0 {
+		return ErrBuddyNotFound
+	}
+	return nil
+}
+
 type rowScanner interface {
 	Scan(dest ...any) error
 }
