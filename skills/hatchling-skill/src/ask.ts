@@ -1,12 +1,18 @@
 import { Command } from "commander";
-import { missingTokenError, resolveConfig } from "./lib/config.js";
+import {
+  listConfiguredAliases,
+  missingTokenError,
+  resolveConfig,
+  type ResolvedConfig,
+  type ResolveInput,
+} from "./lib/config.js";
 import { apiFetch, HttpError, humanizeError } from "./lib/http.js";
-import type { Thread, Message } from "./types.js";
+import type { Buddy, Thread, Message } from "./types.js";
 
 export interface AskInput {
   flags: { relayUrl?: string; profile?: string };
   env: NodeJS.ProcessEnv;
-  buddyId: string;
+  buddyRef: string;
   question: string;
   /** Injectable for tests; reads a line from stdin when not provided. */
   readReply?: () => Promise<string>;
@@ -14,20 +20,20 @@ export interface AskInput {
 
 const POLL_WAIT_SECONDS = 25;
 const TURN_CAP = 3;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function runAsk(input: AskInput): Promise<void> {
-  const cfg = resolveConfig(input);
-  if (!cfg.token) throw missingTokenError(cfg.profile);
+  const { cfg, buddyId } = await resolveBuddyTarget(input);
 
   const base = cfg.relayUrl;
-  const token = cfg.token;
+  const token = cfg.token!;
 
   const opened = await apiFetch<Thread>({
     baseUrl: base,
     path: "/v1/threads",
     method: "POST",
     token,
-    body: { buddyId: input.buddyId, question: input.question },
+    body: { buddyId, question: input.question },
   });
 
   let threadId = opened.id;
@@ -82,6 +88,61 @@ export async function runAsk(input: AskInput): Promise<void> {
   }
 }
 
+async function resolveBuddyTarget(
+  input: AskInput,
+): Promise<{ cfg: ResolvedConfig; buddyId: string }> {
+  const ref = input.buddyRef;
+
+  if (UUID_RE.test(ref) || !ref.includes("/")) {
+    const cfg = resolveConfig(input);
+    if (!cfg.token) throw missingTokenError(cfg.profile);
+    return { cfg, buddyId: ref };
+  }
+
+  const slash = ref.indexOf("/");
+  const alias = ref.slice(0, slash);
+  const name = ref.slice(slash + 1);
+
+  const aliases = listConfiguredAliases(input.env);
+  if (!aliases.includes(alias)) {
+    const list = aliases.length > 0 ? aliases.join(", ") : "(none)";
+    throw new Error(
+      `unknown relay alias "${alias}" — configured aliases: ${list}. ` +
+        `Run \`clawgard-hatchling-setup --profile ${alias}\` to add it.`,
+    );
+  }
+
+  const scoped: ResolveInput = {
+    flags: { ...input.flags, profile: alias },
+    env: input.env,
+  };
+  const cfg = resolveConfig(scoped);
+  if (!cfg.token) throw missingTokenError(cfg.profile);
+
+  const buddies = await apiFetch<Buddy[]>({
+    baseUrl: cfg.relayUrl,
+    path: "/v1/buddies",
+    token: cfg.token,
+  });
+  const matches = buddies.filter((b) => b.name === name);
+
+  if (matches.length === 0) {
+    throw new Error(
+      `no buddy named "${name}" on relay "${alias}" — ` +
+        `run \`clawgard-hatchling-list --profile ${alias}\` to see available buddies.`,
+    );
+  }
+  if (matches.length > 1) {
+    const ids = matches.map((b) => b.id).join(", ");
+    throw new Error(
+      `multiple buddies named "${name}" on relay "${alias}": ${ids}. ` +
+        `Pass the UUID directly (e.g. \`clawgard-hatchling-ask <uuid> --profile ${alias}\`).`,
+    );
+  }
+
+  return { cfg, buddyId: matches[0].id };
+}
+
 function printBuddyMessage(m: Message): void {
   const prefix = m.type === "clarification_request" ? "Buddy asks" : "Buddy";
   console.log(`${prefix}: ${m.content}`);
@@ -114,7 +175,7 @@ async function readLineFromStdin(): Promise<string> {
 
 function buildCli(): Command {
   return new Command("clawgard-hatchling-ask")
-    .argument("<buddyId>")
+    .argument("<buddyRef>", "buddy UUID or <alias>/<name>")
     .argument("<question>")
     .option("--relay-url <url>")
     .option("--profile <name>");
@@ -122,12 +183,16 @@ function buildCli(): Command {
 
 export async function main(argv: string[] = process.argv): Promise<void> {
   const cli = buildCli().parse(argv);
-  const [buddyId, question] = cli.processedArgs as [string, string];
+  const [buddyRef, question] = cli.processedArgs as [string, string];
   try {
-    await runAsk({ flags: cli.opts(), env: process.env, buddyId, question });
+    await runAsk({ flags: cli.opts(), env: process.env, buddyRef, question });
   } catch (err) {
     if (err instanceof HttpError) {
       process.stderr.write(humanizeError(err) + "\n");
+      process.exit(1);
+    }
+    if (err instanceof Error) {
+      process.stderr.write(err.message + "\n");
       process.exit(1);
     }
     throw err;

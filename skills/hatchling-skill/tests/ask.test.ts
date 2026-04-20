@@ -94,7 +94,7 @@ describe("runAsk — one-shot", () => {
     await runAsk({
       flags: {},
       env: sb.withEnv(),
-      buddyId: "buddy-1",
+      buddyRef: "buddy-1",
       question: "what is X?",
     });
 
@@ -197,7 +197,7 @@ describe("runAsk — clarification flow", () => {
     await runAsk({
       flags: {},
       env: sb.withEnv(),
-      buddyId: "b",
+      buddyRef: "b",
       question: "what is X?",
       readReply: async () => "the payments X",
     });
@@ -284,7 +284,7 @@ describe("runAsk — clarification flow", () => {
     await runAsk({
       flags: {},
       env: sb.withEnv(),
-      buddyId: "b",
+      buddyRef: "b",
       question: "what is X?",
       readReply: async () => "reply",
     });
@@ -364,7 +364,7 @@ describe("runAsk — piped stdin", () => {
       await runAsk({
         flags: {},
         env: sb.withEnv(),
-        buddyId: "b",
+        buddyRef: "b",
         question: "what is X?",
       });
     } finally {

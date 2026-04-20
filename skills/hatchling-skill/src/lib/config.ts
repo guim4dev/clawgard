@@ -64,6 +64,11 @@ function readConfigFile(env: NodeJS.ProcessEnv): ConfigFile | undefined {
   return JSON.parse(readFileSync(path, "utf8")) as ConfigFile;
 }
 
+export function listConfiguredAliases(env: NodeJS.ProcessEnv): string[] {
+  const file = readConfigFile(env);
+  return file ? Object.keys(file).sort() : [];
+}
+
 export function readToken(env: NodeJS.ProcessEnv, alias: string): string | undefined {
   const path = tokenFilePath(env, alias);
   if (!existsSync(path)) return undefined;
