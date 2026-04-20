@@ -67,11 +67,39 @@ npx @clawgard/buddy-skill start --on-question 'python answer.py'
 
 ```bash
 npx @clawgard/hatchling-skill add
-npx @clawgard/hatchling-skill setup         # OIDC device-code flow, once
-npx @clawgard/hatchling-skill ask --buddy "team-api-expert" --question "how do we page through /users?"
+npx @clawgard/hatchling-skill setup                     # OIDC device-code flow, once per relay
+npx @clawgard/hatchling-skill ask team-a/api-expert "how do we page through /users?"
 ```
 
 Pure Node. Zero binary. Works on macOS, Linux, Windows.
+
+### Multi-relay (talk to two companies at once)
+
+A single hatchling can be signed into N relays side-by-side. Register each one with a `--profile <alias>`; each alias keeps an independent OIDC identity and token file. Reference buddies by `<alias>/<name>` — the alias picks the relay.
+
+```bash
+npx @clawgard/hatchling-skill setup --profile a --relay-url https://clawgard.a.example
+npx @clawgard/hatchling-skill setup --profile b --relay-url https://clawgard.b.example
+npx @clawgard/hatchling-skill list                        # merged view across all relays, alias-annotated
+npx @clawgard/hatchling-skill ask a/api-expert "..."      # routes to Company A
+npx @clawgard/hatchling-skill ask b/data-expert "..."     # routes to Company B
+```
+
+### Relay management
+
+```bash
+npx @clawgard/hatchling-skill setup --list-relays           # table of {alias, relayUrl, tokenPresent}
+npx @clawgard/hatchling-skill setup --remove-relay <alias>  # unregister a relay + delete its token file
+```
+
+### Config and token layout
+
+- Linux/macOS: `~/.config/clawgard/`
+  - `config.json` — `{ "<alias>": { "relayUrl": "..." } }`
+  - `tokens/<alias>.token` — one file per alias, mode `0600`
+- Windows: `%APPDATA%\Clawgard\` with the same layout.
+
+Legacy migration: a pre-existing `hatchling.token` file from earlier single-token versions is migrated once to `tokens/default.token` on the next `setup`, `list`, or `ask` invocation, then deleted. A one-line info message is logged; no user action is required.
 
 ## 5-minute demo
 
