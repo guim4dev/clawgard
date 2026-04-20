@@ -7,7 +7,10 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"runtime"
+	"strings"
 	"time"
+	"unicode"
 
 	"github.com/google/shlex"
 )
@@ -40,8 +43,42 @@ func NewRunner(opts RunnerOptions) *Runner {
 
 var ErrInvalidResponse = errors.New("hook produced no valid JSON response")
 
+// splitCommand splits a hook command into argv. On Unix we use POSIX shell
+// rules via shlex. On Windows, shlex's backslash-as-escape corrupts native
+// paths like `C:\path\to\hook.exe`, so we fall back to a whitespace-split
+// that respects double-quoted substrings and preserves backslashes literally.
+func splitCommand(s string) ([]string, error) {
+	if runtime.GOOS == "windows" {
+		return splitWindowsCommand(s), nil
+	}
+	return shlex.Split(s)
+}
+
+func splitWindowsCommand(s string) []string {
+	var args []string
+	var cur strings.Builder
+	inQuotes := false
+	for _, r := range s {
+		switch {
+		case r == '"':
+			inQuotes = !inQuotes
+		case !inQuotes && unicode.IsSpace(r):
+			if cur.Len() > 0 {
+				args = append(args, cur.String())
+				cur.Reset()
+			}
+		default:
+			cur.WriteRune(r)
+		}
+	}
+	if cur.Len() > 0 {
+		args = append(args, cur.String())
+	}
+	return args
+}
+
 func (r *Runner) Run(ctx context.Context, q Question) (Response, error) {
-	argv, err := shlex.Split(r.opts.Command)
+	argv, err := splitCommand(r.opts.Command)
 	if err != nil || len(argv) == 0 {
 		return Response{}, fmt.Errorf("invalid hook command %q: %w", r.opts.Command, err)
 	}
