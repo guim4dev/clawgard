@@ -2,15 +2,36 @@ import { Command } from "commander";
 import * as p from "@clack/prompts";
 import open from "open";
 import { initiateDeviceCode, pollForToken } from "./lib/oidc.js";
-import { migrateLegacyToken, writeConfig, writeToken } from "./lib/config.js";
+import {
+  migrateLegacyToken,
+  readAllProfiles,
+  readToken,
+  removeAlias,
+  writeConfig,
+  writeToken,
+} from "./lib/config.js";
 import { HttpError, humanizeError } from "./lib/http.js";
 
 export interface SetupInput {
-  flags: { relayUrl?: string; profile?: string };
+  flags: {
+    relayUrl?: string;
+    profile?: string;
+    listRelays?: boolean;
+    removeRelay?: string;
+  };
   env: NodeJS.ProcessEnv;
 }
 
 export async function runSetup(input: SetupInput): Promise<void> {
+  if (input.flags.listRelays) {
+    printRelayTable(input.env);
+    return;
+  }
+  if (input.flags.removeRelay !== undefined) {
+    runRemoveRelay(input.env, input.flags.removeRelay);
+    return;
+  }
+
   p.intro("Clawgard hatchling setup");
 
   const mig = migrateLegacyToken(input.env);
@@ -59,22 +80,63 @@ export async function runSetup(input: SetupInput): Promise<void> {
   p.outro("Setup complete.");
 }
 
+function printRelayTable(env: NodeJS.ProcessEnv): void {
+  const profiles = readAllProfiles(env);
+  const aliases = Object.keys(profiles).sort();
+
+  if (aliases.length === 0) {
+    console.log("no relays configured — run `clawgard-hatchling-setup` to add one.");
+    return;
+  }
+
+  const rows = aliases.map((alias) => ({
+    alias,
+    relayUrl: profiles[alias].relayUrl,
+    tokenPresent: readToken(env, alias) !== undefined ? "yes" : "no",
+  }));
+
+  const aliasW = Math.max("ALIAS".length, ...rows.map((r) => r.alias.length));
+  const urlW = Math.max("RELAY URL".length, ...rows.map((r) => r.relayUrl.length));
+
+  const pad = (s: string, w: number) => s + " ".repeat(Math.max(0, w - s.length));
+  console.log(`${pad("ALIAS", aliasW)}  ${pad("RELAY URL", urlW)}  TOKEN`);
+  for (const r of rows) {
+    console.log(`${pad(r.alias, aliasW)}  ${pad(r.relayUrl, urlW)}  ${r.tokenPresent}`);
+  }
+}
+
+function runRemoveRelay(env: NodeJS.ProcessEnv, alias: string): void {
+  removeAlias(env, alias);
+  console.log(`removed relay "${alias}".`);
+}
+
 function buildCli(): Command {
   const cmd = new Command("clawgard-hatchling-setup");
   cmd
     .option("--relay-url <url>", "Relay URL")
-    .option("--profile <name>", "Profile name", undefined);
+    .option("--profile <name>", "Profile name", undefined)
+    .option("--list-relays", "List configured relays and exit")
+    .option("--remove-relay <alias>", "Remove a configured relay alias and its token");
   return cmd;
 }
 
 export async function main(argv: string[] = process.argv): Promise<void> {
   const cli = buildCli().parse(argv);
-  const opts = cli.opts<{ relayUrl?: string; profile?: string }>();
+  const opts = cli.opts<{
+    relayUrl?: string;
+    profile?: string;
+    listRelays?: boolean;
+    removeRelay?: string;
+  }>();
   try {
     await runSetup({ flags: opts, env: process.env });
   } catch (err) {
     if (err instanceof HttpError) {
       process.stderr.write(humanizeError(err) + "\n");
+      process.exit(1);
+    }
+    if (err instanceof Error) {
+      process.stderr.write(err.message + "\n");
       process.exit(1);
     }
     throw err;

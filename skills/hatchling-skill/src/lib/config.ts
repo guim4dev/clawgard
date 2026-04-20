@@ -69,6 +69,25 @@ export function listConfiguredAliases(env: NodeJS.ProcessEnv): string[] {
   return file ? Object.keys(file).sort() : [];
 }
 
+export function readAllProfiles(env: NodeJS.ProcessEnv): ConfigFile {
+  return readConfigFile(env) ?? {};
+}
+
+export function removeAlias(env: NodeJS.ProcessEnv, alias: string): void {
+  const file = readConfigFile(env);
+  if (!file || !(alias in file)) {
+    throw new Error(
+      `alias "${alias}" not found in ${configFilePath(env)}`,
+    );
+  }
+  delete file[alias];
+  ensureDir(env);
+  writeFile600(configFilePath(env), JSON.stringify(file, null, 2) + "\n");
+
+  const tokenPath = tokenFilePath(env, alias);
+  if (existsSync(tokenPath)) unlinkSync(tokenPath);
+}
+
 export function readToken(env: NodeJS.ProcessEnv, alias: string): string | undefined {
   const path = tokenFilePath(env, alias);
   if (!existsSync(path)) return undefined;
