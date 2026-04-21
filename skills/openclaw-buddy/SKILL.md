@@ -45,7 +45,7 @@ This starts:
 From another terminal:
 
 ```bash
-npx @clawgard/hatchling-skill ask openclaw "What is the meaning of life?"
+clawgard-hatchling-ask openclaw "What is the meaning of life?"
 ```
 
 ## Modes

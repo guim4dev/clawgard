@@ -54,7 +54,7 @@ export class OpenClawClient {
         throw new Error(`Gateway error ${response.status}: ${text}`);
       }
 
-      const result = await response.json();
+      const result = (await response.json()) as { reply?: string; response?: string };
       const reply = result.reply ?? result.response ?? "No response from OpenClaw session";
 
       return {
