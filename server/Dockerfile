@@ -8,7 +8,7 @@ WORKDIR /src/server
 ARG VERSION=dev
 RUN --mount=type=cache,target=/root/.cache/go-build \
     --mount=type=cache,target=/go/pkg/mod \
-    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" \
+    GOWORK=off CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" \
     -o /out/clawgard-server ./cmd/clawgard-server
 
 FROM gcr.io/distroless/static-debian12:nonroot

@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -34,5 +35,6 @@ func TestWrite_UnixFileMode0600(t *testing.T) {
 
 func TestRead_MissingIsClearError(t *testing.T) {
 	_, err := Read(filepath.Join(t.TempDir(), "absent"))
-	require.ErrorContains(t, err, "no such")
+	require.Error(t, err)
+	require.True(t, errors.Is(err, os.ErrNotExist), "error %q should wrap os.ErrNotExist", err)
 }

@@ -4,8 +4,8 @@ test("admin creates buddy, sees threads, filters", async ({ page }) => {
   await loginAs(page, "admin@clawgard.test");
 
   // Directory visible with CTA
-  await expect(page.getByText("New buddy")).toBeVisible();
-  await page.getByText("New buddy").click();
+  await expect(page.getByTestId("cta-new")).toBeVisible();
+  await page.getByTestId("cta-new").click();
 
   // Create buddy
   await page.getByTestId("name").locator("input").fill("Huginn");

@@ -63,8 +63,30 @@ func HatchlingOIDCMiddleware(v *auth.OIDCVerifier) func(http.Handler) http.Handl
 //
 // adminGroups may be empty; in that case only the devAdminKey path yields admin.
 func AdminMiddleware(v *auth.OIDCVerifier, devAdminKey string, adminGroups []string) func(http.Handler) http.Handler {
+	return AdminMiddlewareWithSession(v, devAdminKey, adminGroups, nil, nil)
+}
+
+// AdminMiddlewareWithSession extends AdminMiddleware with an optional session-cookie
+// path for the dashboard: a signed session cookie resolving to an email in
+// adminEmails is accepted as an admin identity. Bearer paths are preserved so
+// buddy-cli and OIDC hatchling/admin flows keep working unchanged.
+func AdminMiddlewareWithSession(
+	v *auth.OIDCVerifier,
+	devAdminKey string,
+	adminGroups []string,
+	signer *SessionSigner,
+	adminEmails map[string]bool,
+) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if signer != nil && len(adminEmails) > 0 {
+				if email, err := signer.Read(r); err == nil && adminEmails[email] {
+					id := Identity{Email: email, Admin: true}
+					r = r.WithContext(WithIdentity(r.Context(), id))
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
 			authz := r.Header.Get("Authorization")
 			if devAdminKey != "" && authz == "Bearer "+devAdminKey {
 				id := Identity{Email: "admin@clawgard.test", Admin: true}

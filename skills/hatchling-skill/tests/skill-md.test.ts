@@ -1,11 +1,12 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const md = readFileSync(
-  join(new URL("..", import.meta.url).pathname, "SKILL.md"),
+  join(fileURLToPath(new URL("..", import.meta.url)), "SKILL.md"),
   "utf8",
-);
+).replace(/\r\n/g, "\n");
 
 describe("SKILL.md", () => {
   it("starts with YAML frontmatter containing name and description", () => {

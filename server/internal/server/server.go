@@ -77,9 +77,22 @@ func New(ctx context.Context, cfg config.Config) (*Server, error) {
 		api.MountHatchling(r, s, reg)
 	})
 
-	// Admin endpoints: AdminMiddleware handles dev-mode admin key OR real OIDC.
+	// Build the session signer + admin-email set up front when configured so
+	// the admin middleware can accept dashboard session cookies in addition to
+	// the existing bearer/dev-key paths used by buddy-cli and OIDC.
+	var sessionSigner *api.SessionSigner
+	adminEmailSet := make(map[string]bool, len(cfg.AdminEmails))
+	for _, e := range cfg.AdminEmails {
+		adminEmailSet[e] = true
+	}
+	if cfg.SessionSecret != "" {
+		sessionSigner = api.NewSessionSigner([]byte(cfg.SessionSecret))
+	}
+
+	// Admin endpoints: AdminMiddleware handles dev-mode admin key OR real OIDC,
+	// plus dashboard session cookies when a SessionSecret is configured.
 	r.Group(func(r chi.Router) {
-		r.Use(api.AdminMiddleware(oidcVerifier, cfg.DevAdminKey, []string{}))
+		r.Use(api.AdminMiddlewareWithSession(oidcVerifier, cfg.DevAdminKey, []string{}, sessionSigner, adminEmailSet))
 		api.MountAdmin(r, s)
 	})
 
@@ -87,13 +100,8 @@ func New(ctx context.Context, cfg config.Config) (*Server, error) {
 	// and the embedded SPA catch-all. All three require a SessionSecret; if the
 	// operator hasn't configured one, we skip the SPA surface entirely (the
 	// bare API still works for buddy-cli and hatchling-skill flows).
-	if cfg.SessionSecret != "" {
-		signer := api.NewSessionSigner([]byte(cfg.SessionSecret))
-
-		adminEmailSet := make(map[string]bool, len(cfg.AdminEmails))
-		for _, e := range cfg.AdminEmails {
-			adminEmailSet[e] = true
-		}
+	if sessionSigner != nil {
+		signer := sessionSigner
 		meHandler := api.NewMeHandler(api.MeConfig{
 			Signer:      signer,
 			AdminEmails: adminEmailSet,

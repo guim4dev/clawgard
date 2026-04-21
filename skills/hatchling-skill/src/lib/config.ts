@@ -7,7 +7,11 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { join } from "node:path";
+import { join, posix, win32 } from "node:path";
+
+function platformJoin(...segments: string[]): string {
+  return (process.platform === "win32" ? win32.join : posix.join)(...segments);
+}
 
 export interface ProfileConfig {
   relayUrl: string;
@@ -40,9 +44,9 @@ const TOKENS_DIRNAME = "tokens";
 
 export function configDir(env: NodeJS.ProcessEnv): string {
   const paths = envPaths("clawgard", { suffix: "" });
-  if (env.XDG_CONFIG_HOME) return join(env.XDG_CONFIG_HOME, "clawgard");
-  if (process.platform === "win32" && env.APPDATA) return join(env.APPDATA, "Clawgard");
-  if (env.HOME) return join(env.HOME, ".config", "clawgard");
+  if (env.XDG_CONFIG_HOME) return platformJoin(env.XDG_CONFIG_HOME, "clawgard");
+  if (process.platform === "win32" && env.APPDATA) return platformJoin(env.APPDATA, "Clawgard");
+  if (env.HOME) return platformJoin(env.HOME, ".config", "clawgard");
   return paths.config;
 }
 

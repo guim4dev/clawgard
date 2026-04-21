@@ -22,7 +22,7 @@ generate:
 	cd spec-go && PATH="$$(go env GOPATH)/bin:$$PATH" go generate ./...
 	pnpm --filter @clawgard/spec generate
 
-lint:
+lint: generate
 	pnpm dlx @stoplight/spectral-cli@latest lint --ruleset spec/.spectral.yaml spec/clawgard.openapi.yaml
 	cd spec-go && go vet ./...
 	pnpm --filter @clawgard/spec typecheck
