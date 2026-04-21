@@ -214,11 +214,13 @@ dockers:
     ids: [clawgard-server]
     goos: linux
     goarch: amd64
-    dockerfile: Dockerfile.server
+    dockerfile: Dockerfile
     use: buildx
+    extra_files:
+      - scripts/entrypoint.sh
     image_templates:
-      - "ghcr.io/clawgard/server:{{ .Version }}-amd64"
-      - "ghcr.io/clawgard/server:latest-amd64"
+      - "guimadev/clawgard-server:{{ .Version }}-amd64"
+      - "guimadev/clawgard-server:latest-amd64"
     build_flag_templates:
       - "--platform=linux/amd64"
       - "--label=org.opencontainers.image.created={{ .Date }}"
@@ -232,11 +234,13 @@ dockers:
     ids: [clawgard-server]
     goos: linux
     goarch: arm64
-    dockerfile: Dockerfile.server
+    dockerfile: Dockerfile
     use: buildx
+    extra_files:
+      - scripts/entrypoint.sh
     image_templates:
-      - "ghcr.io/clawgard/server:{{ .Version }}-arm64"
-      - "ghcr.io/clawgard/server:latest-arm64"
+      - "guimadev/clawgard-server:{{ .Version }}-arm64"
+      - "guimadev/clawgard-server:latest-arm64"
     build_flag_templates:
       - "--platform=linux/arm64"
       - "--label=org.opencontainers.image.created={{ .Date }}"
@@ -246,57 +250,15 @@ dockers:
       - "--label=org.opencontainers.image.source=https://github.com/clawgard/clawgard"
       - "--label=org.opencontainers.image.licenses=Apache-2.0"
 
-  - id: buddy-amd64
-    ids: [clawgard-buddy]
-    goos: linux
-    goarch: amd64
-    dockerfile: Dockerfile.buddy
-    use: buildx
-    image_templates:
-      - "ghcr.io/clawgard/buddy:{{ .Version }}-amd64"
-      - "ghcr.io/clawgard/buddy:latest-amd64"
-    build_flag_templates:
-      - "--platform=linux/amd64"
-      - "--label=org.opencontainers.image.title=clawgard-buddy"
-      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
-      - "--label=org.opencontainers.image.version={{ .Version }}"
-      - "--label=org.opencontainers.image.source=https://github.com/clawgard/clawgard"
-      - "--label=org.opencontainers.image.licenses=Apache-2.0"
-
-  - id: buddy-arm64
-    ids: [clawgard-buddy]
-    goos: linux
-    goarch: arm64
-    dockerfile: Dockerfile.buddy
-    use: buildx
-    image_templates:
-      - "ghcr.io/clawgard/buddy:{{ .Version }}-arm64"
-      - "ghcr.io/clawgard/buddy:latest-arm64"
-    build_flag_templates:
-      - "--platform=linux/arm64"
-      - "--label=org.opencontainers.image.title=clawgard-buddy"
-      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
-      - "--label=org.opencontainers.image.version={{ .Version }}"
-      - "--label=org.opencontainers.image.source=https://github.com/clawgard/clawgard"
-      - "--label=org.opencontainers.image.licenses=Apache-2.0"
-
 docker_manifests:
-  - name_template: "ghcr.io/clawgard/server:{{ .Version }}"
+  - name_template: "guimadev/clawgard-server:{{ .Version }}"
     image_templates:
-      - "ghcr.io/clawgard/server:{{ .Version }}-amd64"
-      - "ghcr.io/clawgard/server:{{ .Version }}-arm64"
-  - name_template: "ghcr.io/clawgard/server:latest"
+      - "guimadev/clawgard-server:{{ .Version }}-amd64"
+      - "guimadev/clawgard-server:{{ .Version }}-arm64"
+  - name_template: "guimadev/clawgard-server:latest"
     image_templates:
-      - "ghcr.io/clawgard/server:latest-amd64"
-      - "ghcr.io/clawgard/server:latest-arm64"
-  - name_template: "ghcr.io/clawgard/buddy:{{ .Version }}"
-    image_templates:
-      - "ghcr.io/clawgard/buddy:{{ .Version }}-amd64"
-      - "ghcr.io/clawgard/buddy:{{ .Version }}-arm64"
-  - name_template: "ghcr.io/clawgard/buddy:latest"
-    image_templates:
-      - "ghcr.io/clawgard/buddy:latest-amd64"
-      - "ghcr.io/clawgard/buddy:latest-arm64"
+      - "guimadev/clawgard-server:latest-amd64"
+      - "guimadev/clawgard-server:latest-arm64"
 
 changelog:
   sort: asc
