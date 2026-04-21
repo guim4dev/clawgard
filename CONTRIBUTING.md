@@ -15,6 +15,7 @@ Scopes used in this repo:
 - `buddy-cli` — Go buddy daemon (`buddy-cli/`)
 - `hatchling-skill` — pure-Node skill (`skills/hatchling-skill/`)
 - `buddy-skill` — Go binary wrapper skill (`skills/buddy-skill/`)
+- `openclaw-buddy` — OpenClaw bridge skill (`skills/openclaw-buddy/`)
 - `spec` — OpenAPI spec (`spec/`)
 - `dashboard` — embedded Vue SPA (`server/web/`)
 - `release`, `ci`, `docs`, `security`, `deps`
@@ -54,6 +55,19 @@ The full matrix runs in CI on every PR. `make lint test` must pass locally befor
 3. **TDD the behavior change.** Write a failing test in the relevant package (`server/internal/...` or `buddy-cli/internal/...`), watch it fail for the right reason, then implement.
 4. If you're adding a buddy-operation type, also update the `BuddyFrame` discriminated union in the spec and the corresponding Go / TS types.
 5. Update `docs/design/` if the change is architectural (new trust boundary, new persistence shape, new external dependency). Small endpoints don't need a design update.
+
+## Authoring a new Node skill
+
+Known gotcha that has bitten us twice: skills that ship a CLI binary **must** gate their entrypoint with the Windows-safe check — not the naive `file://` URL comparison.
+
+```ts
+import { fileURLToPath } from "node:url";
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  main();
+}
+```
+
+The shorter `import.meta.url === \`file://${process.argv[1]}\`` pattern breaks on Windows paths (backslash vs forward slash, drive letters) and has caused CI failures in both `hatchling-skill` (fixed in `3b98503`) and `openclaw-buddy` (fixed in `4b0456e`). When copying from an existing skill, verify this specific line.
 
 ## Code review expectations
 

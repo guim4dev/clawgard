@@ -1,0 +1,31 @@
+{
+  "name": "@clawgard/openclaw-buddy",
+  "version": "0.1.0",
+  "description": "Run an OpenClaw agent as a Clawgard buddy without external dependencies.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "bin": {
+    "openclaw-buddy": "scripts/start.js"
+  },
+  "files": [
+    "SKILL.md",
+    "README.md",
+    "LICENSE",
+    "scripts",
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "msw": "^2.4.0",
+    "tsup": "^8.2.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.1.0"
+  }
+}
