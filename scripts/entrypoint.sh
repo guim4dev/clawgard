@@ -1,5 +1,5 @@
 #!/bin/sh
-set -e
+set -eu
 
 SERVER_BIN="/usr/local/bin/clawgard-server"
 

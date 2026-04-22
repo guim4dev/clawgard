@@ -103,7 +103,7 @@ brews:
       name: clawgard-releaser
       email: release-bot@clawgard.dev
     test: |
-      assert_match "clawgard-server version #{version}", shell_output("#{bin}/clawgard-server --version")
+      assert_match "clawgard-server version #{version}", shell_output("#{bin}/clawgard-server version")
     install: |
       bin.install "clawgard-server"
 
@@ -121,7 +121,7 @@ brews:
       name: clawgard-releaser
       email: release-bot@clawgard.dev
     test: |
-      assert_match "clawgard-buddy version #{version}", shell_output("#{bin}/clawgard-buddy --version")
+      assert_match "clawgard-buddy version #{version}", shell_output("#{bin}/clawgard-buddy version")
     install: |
       bin.install "clawgard-buddy"
 

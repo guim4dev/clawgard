@@ -106,8 +106,8 @@ jobs:
         run: |
           brew tap clawgard/tap
           brew install clawgard-server clawgard-buddy
-          clawgard-server --version
-          clawgard-buddy --version
+          clawgard-server version
+          clawgard-buddy version
 
       - name: Install hatchling-skill from npm
         run: |
@@ -122,4 +122,4 @@ jobs:
       - name: Pull and smoke-test docker image
         run: |
           docker pull guimadev/clawgard-server:${GITHUB_REF_NAME}
-          docker run --rm guimadev/clawgard-server:${GITHUB_REF_NAME} clawgard-server --version
+          docker run --rm guimadev/clawgard-server:${GITHUB_REF_NAME} version
