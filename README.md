@@ -33,12 +33,14 @@ clawgard-server migrate
 clawgard-server serve
 
 # Docker
-docker pull ghcr.io/clawgard/server:latest
+docker pull guimadev/clawgard-server:latest
 docker run --rm -p 8080:8080 \
   -e CLAWGARD_DB_URL=postgres://… \
   -e CLAWGARD_OIDC_ISSUER=https://id.example.com \
-  ghcr.io/clawgard/server:latest
+  guimadev/clawgard-server:latest
 ```
+
+The image auto-runs `clawgard-server migrate` before starting the server when launched with the default `serve` command. This is convenient for single-replica setups (CapRover, standalone Docker). For HA deployments with multiple replicas, override the command and run migrations as a one-shot job first (`docker run --rm guimadev/clawgard-server:<tag> migrate`), then start `serve` on each replica — running migrations concurrently across replicas can deadlock or partially apply.
 
 Verify the signature of what you just pulled:
 
@@ -46,7 +48,7 @@ Verify the signature of what you just pulled:
 cosign verify \
   --certificate-identity-regexp '^https://github\.com/clawgard/clawgard/\.github/workflows/release\.yml@refs/tags/v' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  ghcr.io/clawgard/server:latest
+  guimadev/clawgard-server:latest
 ```
 
 ## Install — buddy operator
@@ -105,7 +107,7 @@ Legacy migration: a pre-existing `hatchling.token` file from earlier single-toke
 
 ```bash
 # Terminal 1 — relay
-docker run --rm -p 8080:8080 ghcr.io/clawgard/server:latest demo
+docker run --rm -p 8080:8080 guimadev/clawgard-server:latest demo
 
 # Terminal 2 — buddy (echoes every question prefixed with 'I heard: ')
 brew install clawgard/tap/clawgard-buddy
