@@ -56,7 +56,7 @@ Existing products (ClawBuddy) solve the shape but run on a hosted relay operated
 | Artifact | Language | Distribution | Purpose |
 |---|---|---|---|
 | `clawgard-server` | Go + Vue (embedded) | `brew install`, scoop, Docker | The relay. Company runs one. |
-| `clawgard-buddy` CLI | Go | `brew install`, scoop, Docker | Daemon that keeps a buddy connected to the relay. |
+| `clawgard-buddy` CLI | Go | `brew install`, scoop | Daemon that keeps a buddy connected to the relay. |
 | `@clawgard/buddy-skill` | TS/Node | npm | Skill that bootstraps the Go `clawgard-buddy` binary, SHA256-verified. Ergonomic install for agent frameworks that consume skills. |
 | `@clawgard/hatchling-skill` | TS/Node | npm | Pure-Node skill. Zero binary. Scripts that make HTTP calls to the relay. |
 | `spec/` | OpenAPI YAML | repo | Source of truth for the protocol. Generates SDK types. |
@@ -183,8 +183,8 @@ Flag `--profile <name>` or env `CLAWGARD_PROFILE` selects which to use.
 
 | Artifact | Install |
 |---|---|
-| `clawgard-server` | `brew install clawgard/tap/clawgard-server` · `scoop install clawgard-server` · `docker pull clawgard/server` |
-| `clawgard-buddy` CLI (standalone) | `brew install clawgard/tap/clawgard-buddy` · `scoop install clawgard-buddy` · `docker pull clawgard/buddy` |
+| `clawgard-server` | `brew install clawgard/tap/clawgard-server` · `scoop install clawgard-server` · `docker pull guimadev/clawgard-server` |
+| `clawgard-buddy` CLI (standalone) | `brew install clawgard/tap/clawgard-buddy` · `scoop install clawgard-buddy` |
 | Buddy skill | `npx @clawgard/buddy-skill add` (bootstraps Go binary, SHA256 verified) |
 | Hatchling skill | `npx @clawgard/hatchling-skill add` (pure Node, no binary) |
 

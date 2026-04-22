@@ -49,7 +49,8 @@ Lessons learned from the ClawBuddy incident are codified here.
   ```bash
   npm audit signatures @clawgard/hatchling-skill @clawgard/buddy-skill
   ```
-- Docker images are published **only to GHCR**: `ghcr.io/clawgard/server` and `ghcr.io/clawgard/buddy`. Docker Hub mirroring is deliberately deferred while keyless signing is still new — one source of truth at a time.
+- The `clawgard-server` container image is published **only to Docker Hub**: `guimadev/clawgard-server`. The `clawgard-buddy` CLI is not shipped as a container image — use the Homebrew tap, Scoop bucket, or standalone binaries listed below. One source of truth per artifact.
+- The runtime image base is `alpine:3.19` (not distroless). The shell is required so the container's entrypoint can run `clawgard-server migrate` before `serve`. Trade-off vs. the previous distroless image: slightly larger CVE surface and an interactive shell, in exchange for zero-config migration on boot. Operators who need a minimal image can run `clawgard-server` directly from the Homebrew/Scoop/binary distributions or build a custom distroless image that invokes `migrate` as a separate Job.
 
 ### SHA256-pinned binary download
 - `@clawgard/buddy-skill` bundles a hashes file at publish time containing the SHA256 of the `clawgard-buddy` binary for each `(os, arch)` combo it supports (implemented in Plan 4's bootstrap path).
@@ -58,7 +59,7 @@ Lessons learned from the ClawBuddy incident are codified here.
 
 ### Signed releases
 - **Binaries, archives, checksums**: Cosign keyless signed via Sigstore/Fulcio. OIDC issuer: `https://token.actions.githubusercontent.com`. Identity: `https://github.com/clawgard/clawgard/.github/workflows/release.yml@refs/tags/<tag>`.
-- **Docker images**: `cosign verify ghcr.io/clawgard/server:<version>` succeeds using the same identity.
+- **Docker image**: `cosign verify guimadev/clawgard-server:<version>` succeeds using the same identity.
 - **SBOMs**: SPDX-JSON, one per archive and per Docker image.
 - Verify a whole release end-to-end:
   ```bash
@@ -94,7 +95,9 @@ the correct signal; do **not** work around it with a long-lived token.
    - `HOMEBREW_TAP_TOKEN`
    - `SCOOP_BUCKET_TOKEN`
    Save both as repo secrets on `clawgard/clawgard` under Settings → Secrets and variables → Actions.
-3. **Confirm `packages: write`** is allowed for GitHub Actions at the org level so GHCR pushes work (Settings → Actions → General → Workflow permissions).
+3. **Provision Docker Hub credentials** as repo secrets under Settings → Secrets and variables → Actions:
+   - `DOCKERHUB_USERNAME` — Docker Hub login (e.g. `guimadev`).
+   - `DOCKERHUB_TOKEN` — access token scoped to push/pull on `guimadev/clawgard-server` (1-year expiry recommended; rotation runbook in the section below).
 4. **npm org `@clawgard`** must exist with either an automation token (`NPM_TOKEN` secret) or a Trusted Publisher binding to the main repo. For provenance, the workflow already requests `id-token: write`; Trusted Publishers is preferred.
 
 Until this pre-flight is complete, **Plan 6 deliverables exist but are inert**: the GoReleaser config, workflows, and scripts are all in place; the first `git push origin vX.Y.Z` will fail at the first missing external dependency. Fix the one that failed, re-push the same tag? No — **tags are append-only**, cut a new one (`vX.Y.(Z+1)-rc.1`) until everything passes, then cut the real tag.
@@ -114,7 +117,7 @@ If a signed artifact is compromised or ships broken:
 2. **GitHub Release** — edit the release notes to prefix with `[YANKED]`, link the advisory, and mark the release as pre-release.
 3. **Docker** — push a replacement tag pointing at the previous known-good digest (not a re-tag of the same version):
    ```bash
-   docker buildx imagetools create -t ghcr.io/clawgard/server:<bad-version>-yanked ghcr.io/clawgard/server:<previous-good-version>
+   docker buildx imagetools create -t guimadev/clawgard-server:<bad-version>-yanked guimadev/clawgard-server:<previous-good-version>
    ```
    Communicate the yanked state in the advisory. Do not retag the original.
 4. **Homebrew / Scoop** — push a commit to each tap repo removing the bad version's formula/manifest entry; bump users to the next good release via `brew upgrade`.

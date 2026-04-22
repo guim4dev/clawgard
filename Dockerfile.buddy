@@ -1,8 +1,0 @@
-# syntax=docker/dockerfile:1.7
-#
-# Release image — consumed by GoReleaser's `dockers:` block. The binary is
-# pre-built and copied in; matches the signed binary byte-for-byte.
-FROM gcr.io/distroless/static-debian12:nonroot
-COPY clawgard-buddy /usr/local/bin/clawgard-buddy
-USER nonroot:nonroot
-ENTRYPOINT ["/usr/local/bin/clawgard-buddy"]

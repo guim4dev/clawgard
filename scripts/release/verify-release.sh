@@ -68,8 +68,7 @@ fi
 if [ -z "${LOCAL_DIR:-}" ]; then
   echo ">> Verifying docker image signatures"
   for image in \
-    "ghcr.io/clawgard/server:${VERSION}" \
-    "ghcr.io/clawgard/buddy:${VERSION}"; do
+    "guimadev/clawgard-server:${VERSION}"; do
     cosign verify \
       --certificate-identity-regexp "^https://github\\.com/${REPO}/\\.github/workflows/release\\.yml@refs/tags/${VERSION}$" \
       --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \

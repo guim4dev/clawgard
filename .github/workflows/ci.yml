@@ -105,7 +105,11 @@ jobs:
           go test -race ./...
       - name: Build Docker image
         run: |
-          docker build -f server/Dockerfile -t clawgard-server:ci .
+          cd server
+          CGO_ENABLED=0 go build -trimpath -o ../clawgard-server ./cmd/clawgard-server
+          cd ..
+          docker build -t clawgard-server:ci .
+          rm -f clawgard-server
 
   hatchling-skill-matrix:
     strategy:
