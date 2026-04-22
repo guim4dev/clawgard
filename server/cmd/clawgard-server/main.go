@@ -51,7 +51,7 @@ func run(args []string) (string, error) {
 		}
 		return "migrations applied", nil
 	case "version":
-		return version, nil
+		return fmt.Sprintf("clawgard-server version %s", version), nil
 	default:
 		return usage(), fmt.Errorf("unknown subcommand %q", args[1])
 	}

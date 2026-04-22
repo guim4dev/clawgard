@@ -11,7 +11,7 @@ func newVersionCmd(info BuildInfo) *cobra.Command {
 		Use:   "version",
 		Short: "Print version",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			_, err := fmt.Fprintf(cmd.OutOrStdout(), "clawgard-buddy %s (%s, %s)\n", info.Version, info.Commit, info.Date)
+			_, err := fmt.Fprintf(cmd.OutOrStdout(), "clawgard-buddy version %s (%s, %s)\n", info.Version, info.Commit, info.Date)
 			return err
 		},
 	}

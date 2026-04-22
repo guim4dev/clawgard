@@ -3,7 +3,7 @@ set -eu
 
 SERVER_BIN="/usr/local/bin/clawgard-server"
 
-if [ "$1" = "serve" ]; then
+if [ "${1:-}" = "serve" ]; then
   echo "Running database migrations..."
   "$SERVER_BIN" migrate
   echo "Migrations complete."
